@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pantalla de Turnos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- Socket.IO desde el servidor -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <style>
+    /* ── Paleta Pastel Breeze ─────────────────────────────────────── */
+    :root {
+      --sky:       #A8D5E2;
+      --sky-dark:  #7BBDD0;
+      --mint:      #B5EAD7;
+      --lavender:  #C9C0E8;
+      --rose:      #FFB7C3;
+      --peach:     #FFDAB9;
+      --warm-white:#FFF8F0;
+      --text-main: #2A2A3A;
+      --text-soft: #5A5A6E;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: linear-gradient(160deg, #d0edf8 0%, #e8f8f0 40%, #ede8f8 80%, var(--warm-white) 100%);
+      color: var(--text-main);
+      overflow: hidden;
+    }
+
+    /* ── Layout ─────────────────────────────────────────────────── */
+    .screen {
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      grid-template-columns: 1fr;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 40px;
+      background: rgba(255,255,255,0.55);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(200,210,230,0.5);
+    }
+
+    .header-title {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--text-main);
+      letter-spacing: 0.5px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .clock {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text-soft);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .conn-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+    .conn-badge.online  { background: #d4f5e9; color: #1a6644; }
+    .conn-badge.offline { background: #fde8e8; color: #9b2222; }
+    .conn-badge .dot {
+      width: 9px; height: 9px; border-radius: 50%;
+    }
+    .conn-badge.online  .dot { background: #2ecc71; }
+    .conn-badge.offline .dot { background: #e74c3c; animation: blink 1s infinite; }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+    /* ── Área central ────────────────────────────────────────────── */
+    .main-area {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 60px;
+      padding: 32px 40px;
+    }
+
+    /* ── Turno principal ────────────────────────────────────────── */
+    .turno-principal {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.7);
+      backdrop-filter: blur(12px);
+      border-radius: 28px;
+      box-shadow: 0 8px 40px rgba(100,100,150,0.15);
+      padding: 48px 64px;
+      min-width: 420px;
+    }
+
+    .tp-label {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-soft);
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      margin-bottom: 16px;
+    }
+
+    .tp-num {
+      font-size: 11rem;
+      font-weight: 900;
+      line-height: 1;
+      color: var(--text-main);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -4px;
+      transition: all 0.1s;
+    }
+
+    .tp-caja {
+      margin-top: 20px;
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--text-soft);
+      background: var(--sky);
+      padding: 8px 24px;
+      border-radius: 40px;
+    }
+
+    /* ── Panel lateral (siguiente / después) ───────────────────── */
+    .side-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      min-width: 240px;
+    }
+
+    .next-card {
+      background: rgba(255,255,255,0.65);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      box-shadow: 0 4px 20px rgba(100,100,150,0.10);
+      padding: 22px 28px;
+      text-align: center;
+    }
+
+    .next-card .nc-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-soft);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+
+    .next-card .nc-num {
+      font-size: 3.8rem;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-main);
+    }
+
+    .next-card .nc-caja {
+      font-size: 0.8rem;
+      color: var(--text-soft);
+      margin-top: 4px;
+    }
+
+    .next-card.nc-after .nc-num {
+      font-size: 2.8rem;
+      color: var(--text-soft);
+    }
+
+    /* ── Animación de entrada ───────────────────────────────────── */
+    @keyframes pop-in {
+      0%   { opacity:0; transform: scale(0.6); }
+      70%  { transform: scale(1.06); }
+      100% { opacity:1; transform: scale(1); }
+    }
+    @keyframes slide-up {
+      0%   { opacity:0; transform: translateY(30px); }
+      100% { opacity:1; transform: translateY(0); }
+    }
+
+    .anim-pop    { animation: pop-in  0.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+    .anim-slide  { animation: slide-up 0.4s ease-out forwards; }
+
+    /* ── Footer ─────────────────────────────────────────────────── */
+    .footer {
+      padding: 14px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255,255,255,0.45);
+      backdrop-filter: blur(8px);
+      border-top: 1px solid rgba(200,210,230,0.4);
+    }
+
+    .footer-msg {
+      font-size: 0.88rem;
+      color: var(--text-soft);
+      font-weight: 600;
+    }
+
+    .footer-brand {
+      font-size: 0.82rem;
+      color: #aaa;
+    }
+
+    /* ── Activación de audio ────────────────────────────────────── */
+    .audio-overlay {
+      position: fixed; inset: 0;
+      background: rgba(30,20,60,0.7);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .audio-box {
+      background: white;
+      border-radius: 24px;
+      padding: 48px 56px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      max-width: 440px;
+    }
+    .audio-box h2 { font-size: 1.5rem; margin-bottom: 12px; }
+    .audio-box p  { color: var(--text-soft); margin-bottom: 28px; font-size: 0.95rem; line-height:1.6; }
+    .btn-activar {
+      background: var(--sky);
+      color: #1a4f5e;
+      border: none;
+      padding: 16px 40px;
+      border-radius: 14px;
+      font-family: inherit;
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn-activar:hover  { background: var(--sky-dark); }
+    .btn-activar:active { transform: scale(0.97); }
+
+    /* ── Silencio badge ─────────────────────────────────────────── */
+    .muted-badge {
+      background: #fff0f0;
+      color: #c0392b;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    /* ── Sin turno (estado inicial) ─────────────────────────────── */
+    .no-turno .tp-num {
+      font-size: 8rem;
+      color: #ccc;
+      letter-spacing: 0;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Overlay para activar audio (requerido por navegadores) -->
+<div class="audio-overlay" id="audioOverlay">
+  <div class="audio-box">
+    <h2>🔔 Pantalla de Turnos</h2>
+    <p>Haz clic en el botón para activar la pantalla y habilitar las notificaciones de sonido.</p>
+    <button class="btn-activar" onclick="activarPantalla()">Activar pantalla</button>
+  </div>
+</div>
+
+<div class="screen" id="screen" style="display:none">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-title" id="headerTitle">GanaGana</div>
+    <div class="header-right">
+      <div class="clock" id="clock">00:00:00</div>
+      <div class="conn-badge offline" id="connBadge">
+        <span class="dot"></span>
+        <span id="connText">Conectando…</span>
+      </div>
+      <div class="muted-badge" id="mutedBadge" style="display:none">🔇 Silencio</div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="main-area" id="mainArea">
+    <div class="turno-principal no-turno" id="turnoCard">
+      <div class="tp-label">TURNO EN ATENCIÓN</div>
+      <div class="tp-num" id="tpNum">---</div>
+      <div class="tp-caja" id="tpCaja" style="display:none">DIRÍJASE A LA CAJA —</div>
+    </div>
+
+    <div class="side-panel" id="sidePanel">
+      <div class="next-card" id="ncSiguiente">
+        <div class="nc-label">Siguiente</div>
+        <div class="nc-num" id="ncSigNum">---</div>
+        <div class="nc-caja" id="ncSigCaja"></div>
+      </div>
+      <div class="next-card nc-after" id="ncDespues">
+        <div class="nc-label">Después</div>
+        <div class="nc-num" id="ncDesNum">---</div>
+        <div class="nc-caja" id="ncDesCaja"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-msg">🟢 Por favor espere a ser llamado</div>
+    <div class="footer-brand" id="footerBrand">Sistema de Turnos</div>
+  </footer>
+</div>
+
+<!-- Audio de notificación generado con Web Audio API -->
+<audio id="audioEl" preload="auto"></audio>
+
+<script>
+// ── Configuración ──────────────────────────────────────────────────────────
+let cfgVolumen  = 0.5;
+let cfgSilencio = false;
+let audioCtx    = null;
+let audioReady  = false;
+
+function activarPantalla() {
+  document.getElementById('audioOverlay').style.display = 'none';
+  document.getElementById('screen').style.display       = 'grid';
+
+  // Crear AudioContext tras interacción del usuario
+  audioCtx  = new (window.AudioContext || window.webkitAudioContext)();
+  audioReady = true;
+
+  iniciarSocket();
+  iniciarReloj();
+}
+
+// ── Reloj ──────────────────────────────────────────────────────────────────
+function iniciarReloj() {
+  function tick() {
+    const now = new Date();
+    const hh  = String(now.getHours()).padStart(2,'0');
+    const mm  = String(now.getMinutes()).padStart(2,'0');
+    const ss  = String(now.getSeconds()).padStart(2,'0');
+    document.getElementById('clock').textContent = `${hh}:${mm}:${ss}`;
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+// ── Formato turno ──────────────────────────────────────────────────────────
+function fmt(n) {
+  if (n == null) return '---';
+  const num = parseInt(n, 10);
+  if (num < 1000) return String(num).padStart(3, '0');
+  return String(num);
+}
+
+// ── Sonido con Web Audio API ───────────────────────────────────────────────
+// Ding de dos tonos suave (Do → Mi)
+function playDing() {
+  if (!audioReady || cfgSilencio || !audioCtx) return;
+  const vol = Math.max(0, Math.min(1, cfgVolumen));
+
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(0, audioCtx.currentTime);
+  gain.gain.linearRampToValueAtTime(vol * 0.4, audioCtx.currentTime + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.9);
+  gain.connect(audioCtx.destination);
+
+  // Primer tono
+  const osc1 = audioCtx.createOscillator();
+  osc1.type = 'sine';
+  osc1.frequency.setValueAtTime(880, audioCtx.currentTime);
+  osc1.connect(gain);
+  osc1.start(audioCtx.currentTime);
+  osc1.stop(audioCtx.currentTime + 0.45);
+
+  // Segundo tono (ligeramente después)
+  const gain2 = audioCtx.createGain();
+  gain2.gain.setValueAtTime(0, audioCtx.currentTime + 0.25);
+  gain2.gain.linearRampToValueAtTime(vol * 0.35, audioCtx.currentTime + 0.28);
+  gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.0);
+  gain2.connect(audioCtx.destination);
+
+  const osc2 = audioCtx.createOscillator();
+  osc2.type = 'sine';
+  osc2.frequency.setValueAtTime(1100, audioCtx.currentTime + 0.25);
+  osc2.connect(gain2);
+  osc2.start(audioCtx.currentTime + 0.25);
+  osc2.stop(audioCtx.currentTime + 1.0);
+}
+
+// ── Actualizar pantalla ────────────────────────────────────────────────────
+let ultimoTurnoMostrado = null;
+
+function actualizarPantalla(estado) {
+  const ultimos = estado.ultimos || []; // [{ turno, caja }, ...]
+
+  const actual    = ultimos[0] || null;
+  const siguiente = ultimos[1] || null;
+  const despues   = ultimos[2] || null;
+
+  // Turno principal
+  const tpNum  = document.getElementById('tpNum');
+  const tpCaja = document.getElementById('tpCaja');
+  const card   = document.getElementById('turnoCard');
+
+  if (actual) {
+    const numFmt = fmt(actual.turno);
+
+    if (ultimoTurnoMostrado !== actual.turno) {
+      ultimoTurnoMostrado = actual.turno;
+
+      // Animación
+      tpNum.classList.remove('anim-pop');
+      void tpNum.offsetWidth; // reflow
+      tpNum.classList.add('anim-pop');
+
+      card.classList.remove('no-turno');
+      tpNum.textContent  = numFmt;
+      tpCaja.textContent = `DIRÍJASE A LA CAJA ${actual.caja}`;
+      tpCaja.style.display = '';
+
+      // Actualizar color de caja
+      const cajaColores = { 1: '#A8D5E2', 2: '#B5EAD7', 3: '#C9C0E8', 4: '#FFDAB9' };
+      tpCaja.style.background = cajaColores[actual.caja] || '#A8D5E2';
+
+      // Sonido
+      playDing();
+    }
+  } else {
+    tpNum.textContent = '---';
+    tpCaja.style.display = 'none';
+    card.classList.add('no-turno');
+  }
+
+  // Siguiente
+  const ncSigNum  = document.getElementById('ncSigNum');
+  const ncSigCaja = document.getElementById('ncSigCaja');
+  if (siguiente) {
+    ncSigNum.textContent  = fmt(siguiente.turno);
+    ncSigCaja.textContent = `Caja ${siguiente.caja}`;
+  } else {
+    ncSigNum.textContent  = '---';
+    ncSigCaja.textContent = '';
+  }
+
+  // Después
+  const ncDesNum  = document.getElementById('ncDesNum');
+  const ncDesCaja = document.getElementById('ncDesCaja');
+  if (despues) {
+    ncDesNum.textContent  = fmt(despues.turno);
+    ncDesCaja.textContent = `Caja ${despues.caja}`;
+  } else {
+    ncDesNum.textContent  = '---';
+    ncDesCaja.textContent = '';
+  }
+}
+
+// ── Socket.IO ──────────────────────────────────────────────────────────────
+function iniciarSocket() {
+  const socket = io({ transports: ['websocket', 'polling'] });
+  const badge  = document.getElementById('connBadge');
+  const btext  = document.getElementById('connText');
+
+  socket.on('connect', () => {
+    badge.className = 'conn-badge online';
+    btext.textContent = 'Conectado';
+  });
+
+  socket.on('disconnect', () => {
+    badge.className = 'conn-badge offline';
+    btext.textContent = 'Sin conexión';
+  });
+
+  socket.on('estado_actualizado', (data) => {
+    actualizarPantalla(data);
+  });
+
+  socket.on('nuevo_turno', (data) => {
+    if (data.estado) actualizarPantalla(data.estado);
+  });
+
+  socket.on('config_actualizada', (cfg) => {
+    if (cfg.establecimiento) {
+      document.getElementById('headerTitle').textContent = cfg.establecimiento;
+      document.getElementById('footerBrand').textContent = cfg.establecimiento;
+    }
+    if (cfg.volumen  !== undefined) cfgVolumen  = cfg.volumen;
+    if (cfg.silencio !== undefined) {
+      cfgSilencio = cfg.silencio;
+      document.getElementById('mutedBadge').style.display = cfgSilencio ? '' : 'none';
+    }
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+/* ── Paleta Pastel Breeze ───────────────────────────────────────────────── */
+:root {
+  --sky:       #A8D5E2;   /* azul cielo suave */
+  --sky-dark:  #7BBDD0;
+  --mint:      #B5EAD7;   /* verde menta */
+  --mint-dark: #82CFAF;
+  --lavender:  #C9C0E8;   /* lavanda */
+  --lavender-dark: #A898D8;
+  --rose:      #FFB7C3;   /* rosa pastel */
+  --rose-dark: #FF8FA3;
+  --peach:     #FFDAB9;   /* durazno */
+  --peach-dark:#FFBA80;
+  --warm-white:#FFF8F0;   /* blanco cálido */
+  --text-main: #3A3A4A;
+  --text-soft: #6B6B7E;
+  --text-light:#9999AA;
+  --shadow:    rgba(100,100,130,0.12);
+  --shadow-md: rgba(100,100,130,0.20);
+  --radius:    16px;
+  --radius-sm: 10px;
+}
+
+/* ── Reset ──────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--warm-white);
+  color: var(--text-main);
+}
+
+/* ── Tipografía ─────────────────────────────────────────────────────────── */
+h1 { font-size: 1.8rem; font-weight: 800; }
+h2 { font-size: 1.4rem; font-weight: 700; }
+h3 { font-size: 1.1rem; font-weight: 600; }
+
+/* ── Botones ────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s, opacity 0.12s;
+  user-select: none;
+}
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.btn-sky     { background: var(--sky);     color: #1a4f5e; box-shadow: 0 2px 8px var(--shadow); }
+.btn-mint    { background: var(--mint);    color: #1a4f36; box-shadow: 0 2px 8px var(--shadow); }
+.btn-lavender{ background: var(--lavender);color: #3a2f6e; box-shadow: 0 2px 8px var(--shadow); }
+.btn-rose    { background: var(--rose);    color: #6e1a2a; box-shadow: 0 2px 8px var(--shadow); }
+.btn-peach   { background: var(--peach);   color: #6e3a1a; box-shadow: 0 2px 8px var(--shadow); }
+
+.btn-sky:hover      { background: var(--sky-dark); }
+.btn-mint:hover     { background: var(--mint-dark); }
+.btn-lavender:hover { background: var(--lavender-dark); color: #fff; }
+.btn-rose:hover     { background: var(--rose-dark);  color: #fff; }
+.btn-peach:hover    { background: var(--peach-dark); }
+
+/* ── Tarjetas ───────────────────────────────────────────────────────────── */
+.card {
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: 0 4px 20px var(--shadow);
+  padding: 24px;
+}
+
+/* ── Badge de conexión ──────────────────────────────────────────────────── */
+.badge-conn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.badge-conn.online  { background: #d4f5e9; color: #1a6644; }
+.badge-conn.offline { background: #fde8e8; color: #9b2222; }
+.badge-conn .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+}
+.badge-conn.online  .dot { background: #2ecc71; }
+.badge-conn.offline .dot { background: #e74c3c; animation: pulse-red 1s infinite; }
+
+@keyframes pulse-red {
+  0%,100% { opacity: 1; } 50% { opacity: 0.3; }
+}
+
+/* ── Flash de confirmación ──────────────────────────────────────────────── */
+@keyframes flash-in {
+  0%   { opacity: 0; transform: scale(0.85); }
+  60%  { transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.flash { animation: flash-in 0.35s ease-out forwards; }
+
+/* ── Input / Label ──────────────────────────────────────────────────────── */
+.form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.form-group label { font-size: 0.85rem; font-weight: 600; color: var(--text-soft); }
+.form-group input, .form-group select {
+  padding: 10px 14px;
+  border: 1.5px solid #e0e0f0;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.form-group input:focus, .form-group select:focus {
+  border-color: var(--sky-dark);
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #f0f0f8; }
+::-webkit-scrollbar-thumb { background: var(--sky); border-radius: 3px; }
