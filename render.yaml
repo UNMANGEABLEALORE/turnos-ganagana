@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: turnos-ganagana
+    runtime: node
+    plan: free
+    buildCommand: npm install --prefix server
+    startCommand: node server/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /api/estado
