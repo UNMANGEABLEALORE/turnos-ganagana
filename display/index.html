@@ -48,9 +48,9 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 18px 40px;
+      padding: 1.125rem 2.5rem;
       background: rgba(255,255,255,0.55);
-      backdrop-filter: blur(12px);
+      backdrop-filter: blur(0.75rem);
       border-bottom: 1px solid rgba(200,210,230,0.5);
     }
 
@@ -64,7 +64,7 @@
     .header-right {
       display: flex;
       align-items: center;
-      gap: 20px;
+      gap: 1.25rem;
     }
 
     .clock {
@@ -77,16 +77,16 @@
     .conn-badge {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 5px 14px;
-      border-radius: 20px;
+      gap: 0.375rem;
+      padding: 0.3125rem 0.875rem;
+      border-radius: 1.25rem;
       font-size: 0.8rem;
       font-weight: 700;
     }
     .conn-badge.online  { background: #d4f5e9; color: #1a6644; }
     .conn-badge.offline { background: #fde8e8; color: #9b2222; }
     .conn-badge .dot {
-      width: 9px; height: 9px; border-radius: 50%;
+      width: 0.5625rem; height: 0.5625rem; border-radius: 50%;
     }
     .conn-badge.online  .dot { background: #2ecc71; }
     .conn-badge.offline .dot { background: #e74c3c; animation: blink 1s infinite; }
@@ -98,8 +98,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 60px;
-      padding: 32px 40px;
+      gap: 3.75rem;
+      padding: 2rem 2.5rem;
     }
 
     /* ── Turno principal ────────────────────────────────────────── */
@@ -109,11 +109,11 @@
       align-items: center;
       justify-content: center;
       background: rgba(255,255,255,0.7);
-      backdrop-filter: blur(12px);
-      border-radius: 28px;
-      box-shadow: 0 8px 40px rgba(100,100,150,0.15);
-      padding: 48px 64px;
-      min-width: 420px;
+      backdrop-filter: blur(0.75rem);
+      border-radius: 1.75rem;
+      box-shadow: 0 0.5rem 2.5rem rgba(100,100,150,0.15);
+      padding: 3rem 4rem;
+      min-width: 26.25rem;
     }
 
     .tp-label {
@@ -121,8 +121,8 @@
       font-weight: 700;
       color: var(--text-soft);
       text-transform: uppercase;
-      letter-spacing: 3px;
-      margin-bottom: 16px;
+      letter-spacing: 0.1875rem;
+      margin-bottom: 1rem;
     }
 
     .tp-num {
@@ -131,34 +131,34 @@
       line-height: 1;
       color: var(--text-main);
       font-variant-numeric: tabular-nums;
-      letter-spacing: -4px;
+      letter-spacing: -0.25rem;
       transition: all 0.1s;
     }
 
     .tp-caja {
-      margin-top: 20px;
+      margin-top: 1.25rem;
       font-size: 1.5rem;
       font-weight: 800;
       color: var(--text-soft);
       background: var(--sky);
-      padding: 8px 24px;
-      border-radius: 40px;
+      padding: 0.5rem 1.5rem;
+      border-radius: 2.5rem;
     }
 
     /* ── Panel lateral (siguiente / después) ───────────────────── */
     .side-panel {
       display: flex;
       flex-direction: column;
-      gap: 20px;
-      min-width: 240px;
+      gap: 1.25rem;
+      min-width: 15rem;
     }
 
     .next-card {
       background: rgba(255,255,255,0.65);
-      backdrop-filter: blur(10px);
-      border-radius: 20px;
-      box-shadow: 0 4px 20px rgba(100,100,150,0.10);
-      padding: 22px 28px;
+      backdrop-filter: blur(0.625rem);
+      border-radius: 1.25rem;
+      box-shadow: 0 0.25rem 1.25rem rgba(100,100,150,0.10);
+      padding: 1.375rem 1.75rem;
       text-align: center;
     }
 
@@ -168,7 +168,7 @@
       color: var(--text-soft);
       text-transform: uppercase;
       letter-spacing: 2px;
-      margin-bottom: 8px;
+      margin-bottom: 0.5rem;
     }
 
     .next-card .nc-num {
@@ -181,7 +181,7 @@
     .next-card .nc-caja {
       font-size: 0.8rem;
       color: var(--text-soft);
-      margin-top: 4px;
+      margin-top: 0.25rem;
     }
 
     .next-card.nc-after .nc-num {
@@ -196,7 +196,7 @@
       100% { opacity:1; transform: scale(1); }
     }
     @keyframes slide-up {
-      0%   { opacity:0; transform: translateY(30px); }
+      0%   { opacity:0; transform: translateY(1.875rem); }
       100% { opacity:1; transform: translateY(0); }
     }
 
@@ -205,12 +205,12 @@
 
     /* ── Footer ─────────────────────────────────────────────────── */
     .footer {
-      padding: 14px 40px;
+      padding: 0.875rem 2.5rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
       background: rgba(255,255,255,0.45);
-      backdrop-filter: blur(8px);
+      backdrop-filter: blur(0.5rem);
       border-top: 1px solid rgba(200,210,230,0.4);
     }
 
@@ -229,7 +229,7 @@
     .audio-overlay {
       position: fixed; inset: 0;
       background: rgba(30,20,60,0.7);
-      backdrop-filter: blur(4px);
+      backdrop-filter: blur(0.25rem);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -237,20 +237,20 @@
     }
     .audio-box {
       background: white;
-      border-radius: 24px;
-      padding: 48px 56px;
+      border-radius: 1.5rem;
+      padding: 3rem 3.5rem;
       text-align: center;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-      max-width: 440px;
+      box-shadow: 0 1.25rem 3.75rem rgba(0,0,0,0.3);
+      max-width: 27.5rem;
     }
-    .audio-box h2 { font-size: 1.5rem; margin-bottom: 12px; }
-    .audio-box p  { color: var(--text-soft); margin-bottom: 28px; font-size: 0.95rem; line-height:1.6; }
+    .audio-box h2 { font-size: 1.5rem; margin-bottom: 0.75rem; }
+    .audio-box p  { color: var(--text-soft); margin-bottom: 1.75rem; font-size: 0.95rem; line-height:1.6; }
     .btn-activar {
       background: var(--sky);
       color: #1a4f5e;
       border: none;
-      padding: 16px 40px;
-      border-radius: 14px;
+      padding: 1rem 2.5rem;
+      border-radius: 0.875rem;
       font-family: inherit;
       font-size: 1.1rem;
       font-weight: 700;
@@ -264,8 +264,8 @@
     .muted-badge {
       background: #fff0f0;
       color: #c0392b;
-      padding: 4px 12px;
-      border-radius: 12px;
+      padding: 0.25rem 0.75rem;
+      border-radius: 0.75rem;
       font-size: 0.75rem;
       font-weight: 700;
     }
@@ -277,13 +277,15 @@
       letter-spacing: 0;
     }
     /* ══ AUTO-AJUSTE: llena cualquier dispositivo sin zoom manual ══ */
+    html { font-size: clamp(16px, min(1.3vw, 2.2vh), 52px); }
+    @media (max-width: 700px) { html { font-size: clamp(16px, 4.4vw, 21px); } }
     .screen { height: 100vh; height: 100dvh; }
     .header { padding: 1.6vh 3vw; }
     .header-title { font-size: clamp(1.3rem, 2.8vw, 3.4rem); }
     .clock { font-size: clamp(1.1rem, 2.4vw, 3rem); }
     .conn-badge { font-size: clamp(.75rem, 1.2vw, 1.4rem); }
     .main-area { min-height: 0; gap: 3vw; padding: 3vh 3vw; align-items: stretch; }
-    .turno-principal { flex: 1 1 auto; min-width: 0; padding: 3vh 3vw; border-radius: clamp(20px, 3vw, 48px); }
+    .turno-principal { flex: 1 1 auto; min-width: 0; padding: 3vh 3vw; border-radius: clamp(1.25rem, 3vw, 3rem); }
     .tp-label { font-size: clamp(.9rem, min(2.2vw, 3.4vh), 2.6rem); margin-bottom: 2vh; }
     .tp-num { font-size: min(25vw, 50vh); letter-spacing: -0.02em; }
     .no-turno .tp-num { font-size: min(20vw, 40vh); }
@@ -296,12 +298,12 @@
     .next-card .nc-caja { font-size: clamp(.8rem, 1.4vw, 1.8rem); }
     .footer { padding: 1.4vh 3vw; }
     .footer-msg { font-size: clamp(.8rem, 1.4vw, 1.8rem); }
-    .btn-probar { position: fixed; right: 12px; bottom: 56px; z-index: 20; background: #fff; border: 1px solid #cfd8e3;
-      border-radius: 10px; padding: 6px 12px; font-family: inherit; font-weight: 700; cursor: pointer; opacity: .75; }
+    .btn-probar { position: fixed; right: 0.75rem; bottom: 3.5rem; z-index: 20; background: #fff; border: 1px solid #cfd8e3;
+      border-radius: 0.625rem; padding: 0.375rem 0.75rem; font-family: inherit; font-weight: 700; cursor: pointer; opacity: .75; }
     .btn-probar:hover { opacity: 1; background: #F8E704; }
-    .sel-voz { right: 150px; max-width: 260px; }
+    .sel-voz { right: 9.375rem; max-width: 16.25rem; }
     .llamada-flash { position: fixed; inset: 0; z-index: 900; pointer-events: none; opacity: 0;
-      border: clamp(8px, 1.2vw, 24px) solid #F8E704; box-shadow: inset 0 0 clamp(40px, 8vw, 160px) rgba(248,231,4,.75); }
+      border: clamp(0.5rem, 1.2vw, 1.5rem) solid #F8E704; box-shadow: inset 0 0 clamp(2.5rem, 8vw, 10rem) rgba(248,231,4,.75); }
     .llamada-flash.on { animation: llamada-flash .7s ease-in-out 4; }
     @keyframes llamada-flash { 0%,100% { opacity: 0; } 50% { opacity: 1; } }
     @media (max-aspect-ratio: 1/1) {

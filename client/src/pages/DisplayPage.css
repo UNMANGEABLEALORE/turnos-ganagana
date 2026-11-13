@@ -9,35 +9,35 @@
 
 .dp-activate-box {
   background: white;
-  border-radius: 28px;
-  box-shadow: 0 12px 48px rgba(100,100,150,0.18);
-  padding: 56px 64px;
+  border-radius: 1.75rem;
+  box-shadow: 0 0.75rem 3rem rgba(100,100,150,0.18);
+  padding: 3.5rem 4rem;
   text-align: center;
-  max-width: 480px;
+  max-width: 30rem;
   width: 100%;
 }
 
-.dp-activate-icon { font-size: 4rem; margin-bottom: 16px; }
+.dp-activate-icon { font-size: 4rem; margin-bottom: 1rem; }
 
 .dp-activate-box h1 {
   font-size: 2rem;
   font-weight: 800;
-  margin-bottom: 8px;
+  margin-bottom: 0.5rem;
   color: var(--text-main);
 }
 
 .dp-activate-box p {
   font-size: 1.1rem;
   color: var(--text-soft);
-  margin-bottom: 32px;
+  margin-bottom: 2rem;
 }
 
 .dp-activate-btn {
   background: var(--sky);
   color: #1a4f5e;
   border: none;
-  border-radius: 14px;
-  padding: 18px 48px;
+  border-radius: 0.875rem;
+  padding: 1.125rem 3rem;
   font-family: inherit;
   font-size: 1.2rem;
   font-weight: 700;
@@ -45,7 +45,7 @@
   transition: background 0.15s, transform 0.1s;
   display: block;
   width: 100%;
-  margin-bottom: 16px;
+  margin-bottom: 1rem;
 }
 .dp-activate-btn:hover  { background: var(--sky-dark); }
 .dp-activate-btn:active { transform: scale(0.97); }
@@ -68,10 +68,10 @@
 .dp-header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 16px 36px;
+  gap: 1rem;
+  padding: 1rem 2.25rem;
   background: rgba(255,255,255,0.6);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(0.75rem);
   border-bottom: 1px solid rgba(200,210,230,0.4);
 }
 
@@ -87,7 +87,7 @@
 .dp-header-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 1rem;
 }
 
 .dp-clock {
@@ -100,9 +100,9 @@
 .dp-conn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 14px;
-  border-radius: 20px;
+  gap: 0.375rem;
+  padding: 0.3125rem 0.875rem;
+  border-radius: 1.25rem;
   font-size: 0.82rem;
   font-weight: 700;
 }
@@ -110,7 +110,7 @@
 .dp-conn--off { background: #fde8e8; color: #9b2222; }
 
 .dp-conn-dot {
-  width: 9px; height: 9px; border-radius: 50%;
+  width: 0.5625rem; height: 0.5625rem; border-radius: 50%;
   background: currentColor;
 }
 .dp-conn--off .dp-conn-dot { animation: blink-dot 1s infinite; }
@@ -126,8 +126,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 64px;
-  padding: 32px 48px;
+  gap: 4rem;
+  padding: 2rem 3rem;
 }
 
 /* ── Turno actual ────────────────────────────────────────────────────────── */
@@ -137,21 +137,21 @@
   align-items: center;
   justify-content: center;
   background: rgba(255,255,255,0.72);
-  backdrop-filter: blur(16px);
-  border-radius: 32px;
-  box-shadow: 0 8px 48px rgba(100,100,150,0.14);
-  padding: 48px 72px;
-  min-width: 420px;
+  backdrop-filter: blur(1rem);
+  border-radius: 2rem;
+  box-shadow: 0 0.5rem 3rem rgba(100,100,150,0.14);
+  padding: 3rem 4.5rem;
+  min-width: 26.25rem;
   text-align: center;
 }
 
 .dp-label-top {
   font-size: 1rem;
   font-weight: 700;
-  letter-spacing: 3px;
+  letter-spacing: 0.1875rem;
   text-transform: uppercase;
   color: var(--text-soft);
-  margin-bottom: 16px;
+  margin-bottom: 1rem;
 }
 
 .dp-current-num {
@@ -159,7 +159,7 @@
   font-weight: 900;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -4px;
+  letter-spacing: -0.25rem;
   /* Animación de entrada */
   animation: pop-in 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
 }
@@ -171,9 +171,9 @@
 }
 
 .dp-caja-pill {
-  margin-top: 24px;
-  padding: 12px 32px;
-  border-radius: 40px;
+  margin-top: 1.5rem;
+  padding: 0.75rem 2rem;
+  border-radius: 2.5rem;
   font-size: 1.3rem;
   font-weight: 800;
   color: #2A2A3A;
@@ -191,20 +191,20 @@
 .dp-side {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  min-width: 220px;
+  gap: 1.25rem;
+  min-width: 13.75rem;
 }
 
 .dp-next-card {
   background: rgba(255,255,255,0.65);
-  backdrop-filter: blur(10px);
-  border-radius: 22px;
-  box-shadow: 0 4px 20px rgba(100,100,150,0.10);
-  padding: 24px 28px;
+  backdrop-filter: blur(0.625rem);
+  border-radius: 1.375rem;
+  box-shadow: 0 0.25rem 1.25rem rgba(100,100,150,0.10);
+  padding: 1.5rem 1.75rem;
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0.375rem;
 }
 
 .dp-next-label {
@@ -239,9 +239,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 36px;
+  padding: 0.875rem 2.25rem;
   background: rgba(255,255,255,0.5);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(0.5rem);
   border-top: 1px solid rgba(200,210,230,0.35);
   font-size: 0.9rem;
   font-weight: 600;
@@ -274,7 +274,7 @@
   flex: 1 1 auto;
   min-width: 0;
   padding: 3vh 3vw;
-  border-radius: clamp(20px, 3vw, 48px);
+  border-radius: clamp(1.25rem, 3vw, 3rem);
 }
 .dp-label-top { font-size: clamp(.9rem, min(2.2vw, 3.4vh), 2.6rem); margin-bottom: 2vh; letter-spacing: .2em; }
 .dp-current-num {
@@ -288,7 +288,7 @@
   font-size: clamp(1.1rem, min(4.2vw, 6.5vh), 5rem);
 }
 .dp-side { min-width: 0; flex: 0 0 22vw; justify-content: center; gap: 2.5vh; }
-.dp-next-card { padding: 2.5vh 1.5vw; border-radius: clamp(14px, 1.8vw, 28px); }
+.dp-next-card { padding: 2.5vh 1.5vw; border-radius: clamp(0.875rem, 1.8vw, 1.75rem); }
 .dp-next-label { font-size: clamp(.7rem, 1.3vw, 1.6rem); }
 .dp-next-num { font-size: min(8vw, 12vh); }
 .dp-next-num--small { font-size: min(6vw, 9vh); }
@@ -297,8 +297,8 @@
 .dp-footer-brand { font-size: clamp(.75rem, 1.2vw, 1.6rem); }
 
 .dp-test-voz {
-  background: #fff; border: 1px solid #cfd8e3; border-radius: 10px; cursor: pointer;
-  padding: 6px 12px; font-family: inherit; font-weight: 700; font-size: clamp(.7rem, 1vw, 1.2rem);
+  background: #fff; border: 1px solid #cfd8e3; border-radius: 0.625rem; cursor: pointer;
+  padding: 0.375rem 0.75rem; font-family: inherit; font-weight: 700; font-size: clamp(.7rem, 1vw, 1.2rem);
   color: #1A382D; transition: background .15s, transform .12s;
 }
 .dp-test-voz:hover { background: #F8E704; transform: translateY(-1px); }
@@ -322,12 +322,12 @@
 .dp-screen { position: relative; }
 .dp-llamada-flash {
   position: absolute; inset: 0; z-index: 30; pointer-events: none;
-  border: clamp(8px, 1.2vw, 24px) solid #F8E704;
-  box-shadow: inset 0 0 clamp(40px, 8vw, 160px) rgba(248,231,4,.75);
+  border: clamp(0.5rem, 1.2vw, 1.5rem) solid #F8E704;
+  box-shadow: inset 0 0 clamp(2.5rem, 8vw, 10rem) rgba(248,231,4,.75);
   opacity: 0;
   animation: llamada-flash 0.7s ease-in-out 4;
 }
 @keyframes llamada-flash { 0%,100% { opacity: 0; } 50% { opacity: 1; } }
 .dp-current-num { animation: pop-in 0.5s cubic-bezier(0.34,1.56,0.64,1) both, num-brillo 1.4s ease-in-out 2 0.5s; }
-@keyframes num-brillo { 0%,100% { text-shadow: none; } 50% { text-shadow: 0 0 40px rgba(248,231,4,.9), 0 0 12px rgba(1,102,48,.4); } }
+@keyframes num-brillo { 0%,100% { text-shadow: none; } 50% { text-shadow: 0 0 2.5rem rgba(248,231,4,.9), 0 0 0.75rem rgba(1,102,48,.4); } }
 @media (prefers-reduced-motion: reduce) { .dp-llamada-flash { animation-duration: 1.4s; animation-iteration-count: 2; } }
