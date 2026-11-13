@@ -1,11 +1,11 @@
-import { io } from 'socket.io-client';
+﻿import { io, type Socket } from 'socket.io-client';
 
 /**
- * En desarrollo (Vite con proxy): URL vacía → proxy redirige al servidor local.
+ * En desarrollo (Vite con proxy): URL vacía → el proxy redirige al servidor local.
  * En red local (otro PC): mismo host pero puerto 3001.
- * En producción (Railway/internet): misma URL del sitio, sin puerto extra.
+ * En producción (Render/internet): misma URL del sitio, sin puerto extra.
  */
-function getServerUrl() {
+function getServerUrl(): string {
   // Variable de entorno explícita (para casos especiales)
   if (import.meta.env.VITE_SERVER_URL) {
     return import.meta.env.VITE_SERVER_URL;
@@ -17,11 +17,10 @@ function getServerUrl() {
   }
 
   // En producción: el servidor Express sirve todo desde la misma URL
-  // No necesitamos puerto separado
   return window.location.origin;
 }
 
-const socket = io(getServerUrl(), {
+const socket: Socket = io(getServerUrl(), {
   autoConnect: true,
   reconnectionDelay: 1000,
   reconnectionDelayMax: 5000,

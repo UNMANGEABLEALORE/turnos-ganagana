@@ -1,0 +1,18 @@
+[
+  {
+    "usuario": "Ganaadmin",
+    "clave": "CAMBIA-ESTA-CLAVE-1",
+    "nombre": "Nombre Apellido",
+    "rol": "Administrador Principal",
+    "saludo": "Todo el sistema de turnos está listo para la jornada.",
+    "email": "correo@gmail.com",
+    "github": "usuario-github",
+    "principal": true
+  },
+  {
+    "usuario": "supervisor1",
+    "clave": "OTRA-CLAVE-SEGURA-2",
+    "nombre": "Nombre Apellido",
+    "rol": "Supervisor de Cajas"
+  }
+]

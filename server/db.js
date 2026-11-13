@@ -1,4 +1,4 @@
-﻿/**
+/**
  * db.js — Persistencia sin dependencias nativas (store.json)
  * Node.js es single-threaded → las escrituras síncronas son atómicas.
  */
@@ -127,7 +127,8 @@ function getEstado() {
 function getAdmins() { return store.admins || null; }
 function setAdmins(lista) { store.admins = lista; guardarStore(store); }
 function getSessionSecret() {
-  if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
+  const deCredenciales = require('./credenciales').claveSesion();   // env o credenciales/sesion.secret
+  if (deCredenciales) return deCredenciales;
   if (!store.sessionSecret) {
     store.sessionSecret = require('crypto').randomBytes(48).toString('hex');
     guardarStore(store);

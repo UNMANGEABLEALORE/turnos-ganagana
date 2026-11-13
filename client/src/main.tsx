@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import SelectorPage from './pages/SelectorPage';
@@ -9,7 +9,7 @@ import CookieBanner from './components/CookieBanner';
 import './styles/global.css';
 
 // ── Título dinámico por ruta ──────────────────────────────────────────────────
-const TITULOS = {
+const TITULOS: Record<string, string> = {
   '/':          'Inicio · Selector de módulo | GanaGana',
   '/caja/1':    'Caja 1 · Atención al cliente | GanaGana',
   '/caja/2':    'Caja 2 · Atención al cliente | GanaGana',
@@ -19,7 +19,7 @@ const TITULOS = {
   '/admin':     'Acceso Administradores | GanaGana',
 };
 
-function TituloSincronizado() {
+function TituloSincronizado(): null {
   const loc = useLocation();
   React.useEffect(() => {
     const titulo = TITULOS[loc.pathname] || 'Sistema de Turnos | GanaGana';
@@ -28,7 +28,7 @@ function TituloSincronizado() {
   return null;
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <BrowserRouter>
       <TituloSincronizado />
@@ -43,4 +43,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </BrowserRouter>
   </React.StrictMode>
 );
+
 

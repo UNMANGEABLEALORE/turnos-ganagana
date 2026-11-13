@@ -4,9 +4,9 @@
  * El servidor guarda un contador entero; la letra se calcula aquí.
  * (La misma lógica está en server/turno.js y en display/index.html — las pruebas verifican que coincidan.)
  */
-export function formatTurno(n) {
+export function formatTurno(n: number | string | null | undefined): string {
   if (n == null || n === '') return '---';
-  const num = parseInt(n, 10);
+  const num = parseInt(String(n), 10);
   if (!Number.isFinite(num) || num < 0) return '---';
   const letra = String.fromCharCode(65 + (Math.floor(num / 100) % 26));
   return letra + String(num % 100).padStart(2, '0');

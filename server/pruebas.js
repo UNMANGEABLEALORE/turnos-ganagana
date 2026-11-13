@@ -13,9 +13,21 @@ try { ioc = require('socket.io-client'); }
 catch { ioc = require(path.join(__dirname, '..', 'client', 'node_modules', 'socket.io-client')); }
 
 const { formatTurno } = require('./turno');
+const ts = require(path.join(__dirname, '..', 'client', 'node_modules', 'typescript'));
+/** Compila un .ts del cliente y lo ejecuta aislado (así se prueba el código REAL del frontend). */
+function cargarTS(rel) {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'client', 'src', rel), 'utf8');
+  const out = ts.transpileModule(src, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
+  const m = { exports: {} };
+  vm.runInNewContext(out, { exports: m.exports, module: m, localStorage: { getItem: () => null, setItem() {}, removeItem() {} } });
+  return m.exports;
+}
 const PORT  = 3999;
 const BASE  = `http://localhost:${PORT}`;
 const STORE = path.join(os.tmpdir(), `gg-prueba-${Date.now()}.json`);
+const CRED  = path.join(os.tmpdir(), `gg-cred-${Date.now()}`);   // carpeta de credenciales temporal
+const CLAVE_PRUEBA = 'ClavePrueba9x';
+const CAPTCHA_PRUEBA = '10000000-aaaa-bbbb-cccc-000000000001';
 
 let ok = 0, fail = 0;
 const fallos = [];
@@ -56,42 +68,50 @@ async function main() {
   check('valores inválidos → ---', ['---'].every(x => formatTurno(-1) === x && formatTurno('abc') === x && formatTurno(null) === x));
 
   // El mismo formato en cliente React y en la pantalla HTML estática
-  const cliente = fs.readFileSync(path.join(__dirname, '..', 'client', 'src', 'utils', 'formato.js'), 'utf8')
-    .replace('export function', 'function');
-  const ctxC = vm.createContext({}); vm.runInContext(cliente, ctxC);
+  const clienteFmt = cargarTS('utils/formato.ts');
   const html = fs.readFileSync(path.join(__dirname, '..', 'display', 'index.html'), 'utf8');
   const fmtHtml = html.match(/function fmt\(n\) \{[\s\S]*?\n\}/)[0];
   const ctxH = vm.createContext({}); vm.runInContext(fmtHtml, ctxH);
   let iguales = true;
   for (let n = 0; n <= 2700; n++) {
-    const a = formatTurno(n), b = ctxC.formatTurno(n), c = ctxH.fmt(n);
+    const a = formatTurno(n), b = clienteFmt.formatTurno(n), c = ctxH.fmt(n);
     if (a !== b || a !== c) { iguales = false; console.log('   difiere en', n, a, b, c); break; }
   }
-  check('servidor, cliente React y display HTML dan el MISMO resultado (0–2700)', iguales);
+  check('servidor, cliente React (TypeScript) y display HTML dan el MISMO resultado (0–2700)', iguales);
 
   // ── 2. Voz ─────────────────────────────────────────────────────────────────
-  seccion('Texto de la voz');
-  const vozSrc = fs.readFileSync(path.join(__dirname, '..', 'client', 'src', 'utils', 'voz.js'), 'utf8');
-  const parte = vozSrc.slice(vozSrc.indexOf('const NOMBRE_LETRA'), vozSrc.indexOf('let vozElegida'))
-    .replace(/export function/g, 'function');
-  const ctxV = vm.createContext({}); vm.runInContext(parte, ctxV);
+  seccion('Texto de la voz (clara, lenta y con apoyo para personas con dificultad auditiva)');
+  const voz = cargarTS('utils/voz.ts');
   const htmlVoz = html.slice(html.indexOf('const NOMBRE_LETRA'), html.indexOf('let vozES'));
   const ctxVH = vm.createContext({}); vm.runInContext(htmlVoz, ctxVH);
 
-  check('A22 caja 2 → "Turno a, veintidós. Diríjase a la caja número 2."',
-    ctxV.textoVoz(22, 2) === 'Turno a, veintidós. Diríjase a la caja número 2.', ctxV.textoVoz(22, 2));
-  check('A00 caja 1 → "cero cero"', ctxV.textoVoz(0, 1) === 'Turno a, cero cero. Diríjase a la caja número 1.');
-  check('B05 caja 3 → "be, cero cinco"', ctxV.textoVoz(105, 3) === 'Turno be, cero cinco. Diríjase a la caja número 3.');
-  check('C31 → "ce, treinta y uno"', ctxV.textoVoz(231, 4).includes('ce, treinta y uno'));
-  check('Z99 → "zeta, noventa y nueve"', ctxV.textoVoz(2599, 1).includes('zeta, noventa y nueve'));
+  const p22 = voz.partesVoz(22, 2);
+  check('A22 caja 2 → letra con nombre y palabra de apoyo', p22[0] === 'Atención. Turno, letra a, de Ana.', p22[0]);
+  check('A22 → número completo en palabras y dígito por dígito', p22[1] === 'Número veintidós. dos, dos.', p22[1]);
+  check('A22 → caja dicha con palabra ("número dos")', p22[2] === 'Diríjase a la caja número dos.', p22[2]);
+  check('A00 → "cero cero" / "cero, cero"', voz.partesVoz(0, 1)[1] === 'Número cero cero. cero, cero.', voz.partesVoz(0, 1)[1]);
+  check('B05 → "be, de Bogotá" y "cero cinco"', voz.partesVoz(105, 3)[0].includes('letra be, de Bogotá') && voz.partesVoz(105, 3)[1].includes('cero cinco'));
+  check('V (uve) y B (be) se distinguen por su palabra de apoyo', voz.partesVoz(2100, 1)[0].includes('Valentina') && voz.partesVoz(100, 1)[0].includes('Bogotá'));
+  check('C31 → "treinta y uno"', voz.partesVoz(231, 4)[1].includes('treinta y uno'));
+  check('Z99 → "zeta" y "noventa y nueve"', voz.partesVoz(2599, 1)[0].includes('zeta') && voz.partesVoz(2599, 1)[1].includes('noventa y nueve'));
   let vozOk = true, mismas = true;
-  for (let n = 0; n < 2700; n++) for (const c of [1,2,3,4]) {
-    const t = ctxV.textoVoz(n, c);
-    if (!t || /undefined|NaN/.test(t)) vozOk = false;
-    if (t !== ctxVH.textoVoz(n, c)) mismas = false;
+  for (let n = 0; n < 2700; n++) for (const c of [1, 2, 3, 4]) {
+    const tx = voz.textoVoz(n, c);
+    if (!tx || /undefined|NaN/.test(tx)) vozOk = false;
+    if (tx !== ctxVH.textoVoz(n, c)) mismas = false;
   }
   check('toda combinación turno × caja produce frase válida (sin undefined/NaN)', vozOk);
   check('voz del cliente React y de la pantalla HTML dicen exactamente lo mismo', mismas);
+  const vc = cargarTS('utils/validaciones.ts');
+
+  seccion('Validaciones lógicas del frontend (TypeScript)');
+  check('caja 1–4 válidas, 0/5/"x" inválidas', [1,2,3,4].every(c => vc.validarCaja(c) === null) && vc.validarCaja(0) && vc.validarCaja(5) && vc.validarCaja('x'));
+  check('volumen fuera de 0–1 se rechaza', vc.validarVolumen(1.5) !== null && vc.validarVolumen(-0.1) !== null && vc.validarVolumen(0.5) === null);
+  check('contraseña débil/corta se rechaza', vc.validarClave('abc') !== null && vc.validarClave('soloLetrasAqui') !== null && vc.validarClave('Segura123') === null);
+  check('usuario inválido se rechaza', vc.validarUsuario('a b') !== null && vc.validarUsuario('laura.mz') === null);
+  check('correo inválido se rechaza', vc.validarCorreo('x@y') !== null && vc.validarCorreo('a@b.co') === null);
+  check('nombres falsos/fantásticos se rechazan', ['Goku Son', 'Batman Wayne', 'Hada Madrina', 'aaa bbb', 'Juan', 'J0se Perez'].every(n => vc.validarNombreReal(n) !== null));
+  check('nombres reales se aceptan', ['Juan David Porras', 'María González', 'Laura Martínez'].every(n => vc.validarNombreReal(n) === null));
 
   // ── 3. Servidor ────────────────────────────────────────────────────────────
   // Pre-cargar contador en 2598 para probar el cambio Z99 → A00 sin hacer 2600 llamadas
@@ -100,8 +120,13 @@ async function main() {
               cajas_estado: { 1: 'activa', 2: 'activa', 3: 'activa', 4: 'activa' } },
     historial: []
   }));
+  // Credenciales de prueba en una carpeta temporal (igual que en uso real: fuera del código)
+  fs.mkdirSync(CRED, { recursive: true });
+  fs.writeFileSync(path.join(CRED, 'administradores.json'), JSON.stringify([
+    { usuario: 'Ganaadmin', clave: CLAVE_PRUEBA, nombre: 'Laura Martínez', rol: 'Administradora de prueba', principal: true }
+  ]));
   const srv = spawn(process.execPath, [path.join(__dirname, 'index.js')], {
-    env: { ...process.env, PORT: String(PORT), STORE_PATH: STORE, GRACIA_MS: '1500', NODE_ENV: 'test' },
+    env: { ...process.env, PORT: String(PORT), STORE_PATH: STORE, GRACIA_MS: '1500', NODE_ENV: 'test', CREDENCIALES_DIR: CRED },
     stdio: ['ignore', 'pipe', 'pipe']
   });
   let log = ''; srv.stdout.on('data', d => log += d); srv.stderr.on('data', d => log += d);
@@ -118,6 +143,28 @@ async function main() {
     check('turno 2598 → Z98', t1.ok && formatTurno(t1.turno) === 'Z98', JSON.stringify(t1));
     check('turno 2599 → Z99', t2.ok && formatTurno(t2.turno) === 'Z99');
     check('turno 2600 → A00 (vuelve a empezar)', t3.ok && formatTurno(t3.turno) === 'A00');
+
+    seccion('Credenciales fuera del código');
+    const malo = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usuario: 'Ganaadmin', clave: 'Gana123', captcha: CAPTCHA_PRUEBA, consentimiento: true }) });
+    check('la antigua contraseña por defecto ya NO funciona', malo.status === 401);
+    const bueno = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usuario: 'Ganaadmin', clave: CLAVE_PRUEBA, captcha: CAPTCHA_PRUEBA, consentimiento: true }) });
+    check('el administrador definido en credenciales/administradores.json sí entra', bueno.status === 200);
+    const cookieA = (bueno.headers.get('set-cookie') || '').split(';')[0];
+    const cj = await (await fetch(`${BASE}/api/auth/me`, { headers: { cookie: cookieA } })).json();
+    check('la sesión usa el nombre real del archivo (bienvenida personalizada)', cj.admin && cj.admin.nombre === 'Laura Martínez', JSON.stringify(cj));
+    check('existe el archivo de clave de sesión en la carpeta de credenciales', fs.existsSync(path.join(CRED, 'sesion.secret')));
+    const store = fs.readFileSync(STORE, 'utf8');
+    check('la contraseña NO está en texto plano en el almacén de datos', !store.includes(CLAVE_PRUEBA));
+
+    seccion('Validación lógica en el servidor (configuración)');
+    const post = (body) => fetch(`${BASE}/api/config`, { method: 'POST', headers: { cookie: cookieA, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    check('volumen 5 → 400', (await post({ volumen: 5 })).status === 400);
+    check('volumen "alto" → 400', (await post({ volumen: 'alto' })).status === 400);
+    check('establecimiento con <script> → 400', (await post({ establecimiento: '<script>' })).status === 400);
+    check('silencio "si" → 400', (await post({ silencio: 'si' })).status === 400);
+    check('configuración válida → 200', (await post({ establecimiento: 'GanaGana Centro', volumen: 0.9, silencio: false })).status === 200);
 
     seccion('Exclusividad de caja (una sola persona por caja)');
     const c2 = await conectar();
@@ -154,7 +201,7 @@ async function main() {
     check('liberar sin sesión de admin → 401', sin.status === 401);
     const lg = await fetch(`${BASE}/api/auth/login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ usuario: 'Ganaadmin', clave: 'Gana123', captcha: '10000000-aaaa-bbbb-cccc-000000000001', consentimiento: true })
+      body: JSON.stringify({ usuario: 'Ganaadmin', clave: CLAVE_PRUEBA, captcha: CAPTCHA_PRUEBA, consentimiento: true })
     });
     if (lg.status === 200) {
       const cookie = lg.headers.get('set-cookie').split(';')[0];
@@ -187,7 +234,7 @@ async function main() {
     seccion('Caja desactivada y llamados rápidos');
     const lg2 = await fetch(`${BASE}/api/auth/login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ usuario: 'Ganaadmin', clave: 'Gana123', captcha: '10000000-aaaa-bbbb-cccc-000000000001', consentimiento: true })
+      body: JSON.stringify({ usuario: 'Ganaadmin', clave: CLAVE_PRUEBA, captcha: CAPTCHA_PRUEBA, consentimiento: true })
     });
     if (lg2.status === 200) {
       const cookie = lg2.headers.get('set-cookie').split(';')[0];
@@ -219,7 +266,27 @@ async function main() {
   } finally {
     srv.kill();
     try { fs.unlinkSync(STORE); } catch {}
+    try { fs.rmSync(CRED, { recursive: true, force: true }); } catch {}
   }
+
+  seccion('Revisión estática: sin credenciales en el código');
+  const raiz = path.join(__dirname, '..');
+  const archivos = [];
+  (function recorrer(d) {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      if (['node_modules', 'dist', '.git', 'credenciales'].includes(e.name)) continue;
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) recorrer(p);
+      else if (/\.(js|jsx|ts|tsx|html|json|yaml)$/.test(e.name) && !/pruebas\.js$|package-lock|store\.json/.test(e.name)) archivos.push(p);
+    }
+  })(raiz);
+  const conClaves = archivos.filter(p => /Gana123|Turno2024|Gana456/.test(fs.readFileSync(p, 'utf8')));
+  check('ninguna contraseña antigua escrita en el código', conClaves.length === 0, conClaves.join(', '));
+  const gi = fs.readFileSync(path.join(raiz, '.gitignore'), 'utf8');
+  check('.gitignore excluye credenciales/.env y administradores.json', gi.includes('credenciales/.env') && gi.includes('credenciales/administradores.json') && gi.includes('credenciales/sesion.secret'));
+  check('existen las plantillas ejemplo.env y ejemplo.administradores.json', fs.existsSync(path.join(raiz, 'credenciales', 'ejemplo.env')) && fs.existsSync(path.join(raiz, 'credenciales', 'ejemplo.administradores.json')));
+  const claveGen = require('./credenciales').claveAleatoria();
+  check('las contraseñas aleatorias generadas cumplen la política', vc.validarClave(claveGen) === null && claveGen.length >= 16);
 
   console.log(`\n══════════════════════════════════════`);
   console.log(` Resultado: ${ok} correctas, ${fail} fallidas`);

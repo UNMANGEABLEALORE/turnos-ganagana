@@ -3,20 +3,29 @@ import { useNavigate } from 'react-router-dom';
 import { useSocket } from '../hooks/useSocket';
 import { formatTurno } from '../utils/formato';
 import { hablarTurno, vozDisponible } from '../utils/voz';
+import type {
+  Administrador, ConfigAuth, EstadoCaja, Presencia, RegistroHistorial, RespuestaApi
+} from '../types';
+import {
+  validarClave, validarCorreo, validarEstablecimiento, validarGithub, validarNombreReal,
+  validarUsuario, validarVolumen, primerError
+} from '../utils/validaciones';
 import './AdminPage.css';
 
 // En desarrollo Vite hace proxy de /api → así la cookie de sesión es del mismo origen.
 const SERVER = import.meta.env.VITE_SERVER_URL || '';
 
 // ── Cliente API (la sesión viaja en una cookie HttpOnly, no se guarda nada en JS) ──
-async function api(ruta, { method = 'GET', body } = {}) {
+interface OpcionesApi { method?: string; body?: unknown; }
+
+async function api<T = Record<string, unknown>>(ruta: string, { method = 'GET', body }: OpcionesApi = {}): Promise<RespuestaApi<T>> {
   const res = await fetch(`${SERVER}${ruta}`, {
     method,
     credentials: 'include',
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
     body: body ? JSON.stringify(body) : undefined
   });
-  let data = {};
+  let data = {} as RespuestaApi<T>['data'];
   try { data = await res.json(); } catch { /* sin cuerpo */ }
   return { ok: res.ok, status: res.status, data };
 }
@@ -27,9 +36,9 @@ function saludoHora() {
 }
 
 // ── hCaptcha (verificado también en el servidor) ─────────────────────────────
-function useCaptcha(sitekey) {
-  const ref      = useRef(null);
-  const widgetId = useRef(null);
+function useCaptcha(sitekey?: string) {
+  const ref      = useRef<HTMLDivElement>(null);
+  const widgetId = useRef<string | number | null>(null);
   const [token, setToken] = useState('');
 
   useEffect(() => {
@@ -39,7 +48,7 @@ function useCaptcha(sitekey) {
       if (!vivo || !ref.current || widgetId.current !== null || !window.hcaptcha) return false;
       widgetId.current = window.hcaptcha.render(ref.current, {
         sitekey, theme: 'light',
-        callback: t => setToken(t),
+        callback: (t: string) => setToken(t),
         'expired-callback': () => setToken(''),
         'error-callback': () => setToken('')
       });
@@ -69,8 +78,8 @@ function useCaptcha(sitekey) {
 }
 
 // ── LOGIN ─────────────────────────────────────────────────────────────────────
-function LoginAdmin({ onOk }) {
-  const [cfg,        setCfg]        = useState(null);
+function LoginAdmin({ onOk }: { onOk: (a: Administrador) => void }) {
+  const [cfg,        setCfg]        = useState<ConfigAuth | null>(null);
   const [usuario,    setUsuario]    = useState('');
   const [pwd,        setPwd]        = useState('');
   const [consent,    setConsent]    = useState(false);
@@ -83,7 +92,7 @@ function LoginAdmin({ onOk }) {
   const captcha  = useCaptcha(cfg?.hcaptchaSitekey);
 
   useEffect(() => {
-    api('/api/auth/config').then(r => setCfg(r.data)).catch(() => {});
+    api<ConfigAuth>('/api/auth/config').then(r => setCfg(r.data)).catch(() => {});
     const e = new URLSearchParams(window.location.search).get('error');
     if (e) { setErr(e); window.history.replaceState({}, '', '/admin'); }
   }, []);
@@ -94,19 +103,19 @@ function LoginAdmin({ onOk }) {
     return () => clearTimeout(t);
   }, [espera]);
 
-  function fallar(msg) {
+  function fallar(msg: string) {
     setErr(msg); setShake(true);
     setTimeout(() => setShake(false), 600);
     captcha.reset(); setLoading(false); setPwd('');
   }
 
-  async function intentar(e) {
+  async function intentar(e: React.FormEvent) {
     e.preventDefault();
     if (espera > 0) return;
     if (!consent) { setErr('Debes autorizar el tratamiento de tus datos personales.'); return; }
     if (!captcha.token) { setErr('Completa la verificación CAPTCHA.'); return; }
     setLoading(true); setErr('');
-    const r = await api('/api/auth/login', {
+    const r = await api<{ admin: Administrador }>('/api/auth/login', {
       method: 'POST',
       body: { usuario, clave: pwd, captcha: captcha.token, consentimiento: true }
     });
@@ -115,7 +124,7 @@ function LoginAdmin({ onOk }) {
     fallar(r.data.error || 'No se pudo iniciar sesión.');
   }
 
-  function oauth(prov) {
+  function oauth(prov: 'google' | 'github') {
     if (!consent) { setErr('Debes autorizar el tratamiento de tus datos personales.'); return; }
     window.location.href = `${SERVER}/api/auth/oauth/${prov}?consent=1`;
   }
@@ -219,7 +228,7 @@ function LoginAdmin({ onOk }) {
 }
 
 // ── Bienvenida post-login (según el administrador) ───────────────────────────
-function BienvenidaModal({ admin, onCerrar }) {
+function BienvenidaModal({ admin, onCerrar }: { admin: Administrador; onCerrar: () => void }) {
   useEffect(() => {
     const t = setTimeout(onCerrar, 5000);
     return () => clearTimeout(t);
@@ -242,9 +251,14 @@ function BienvenidaModal({ admin, onCerrar }) {
 }
 
 // ── Tarjeta de estado ─────────────────────────────────────────────────────────
+interface TarjetaProps {
+  titulo: string; icono: string; color: string; conectada: boolean; falla: boolean; detalle: string;
+  estadoAdmin: EstadoCaja; turno: number | null; onToggle?: () => void; onLiberar?: () => void; esPanel?: boolean;
+}
+
 function TarjetaEstado({ titulo, icono, color, conectada, falla, detalle,
-                          estadoAdmin, turno, onToggle, onLiberar, esPanel = false }) {
-  let label, cls;
+                          estadoAdmin, turno, onToggle, onLiberar, esPanel = false }: TarjetaProps) {
+  let label: string, cls: string;
   if (estadoAdmin === 'inactiva') { label = 'DESACTIVADA'; cls = 'ts-inactiva'; }
   else if (falla)                  { label = 'FALLA';        cls = 'ts-falla';    }
   else if (conectada)              { label = 'ACTIVA';       cls = 'ts-activa';   }
@@ -293,20 +307,22 @@ function TarjetaEstado({ titulo, icono, color, conectada, falla, detalle,
 
 
 // ── PANEL PRINCIPAL ────────────────────────────────────────────────────────────
-function PanelAdmin({ admin, onLogout, onActualizar, recienIngresado }) {
+function PanelAdmin({ admin, onLogout, onActualizar, recienIngresado }: {
+  admin: Administrador; onLogout: () => void; onActualizar: (a: Administrador) => void; recienIngresado: boolean;
+}) {
   const { connected, estado, config, presencia, cajasEstado } = useSocket({ tipo: 'admin' });
-  const [historial,    setHistorial]    = useState([]);
+  const [historial,    setHistorial]    = useState<RegistroHistorial[]>([]);
   const [nombre,       setNombre]       = useState('');
   const [volumen,      setVolumen]      = useState(1);
   const [silencio,     setSilencio]     = useState(false);
   const [msgGuardar,   setMsgGuardar]   = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
   const [msgReset,     setMsgReset]     = useState('');
-  const [errores,      setErrores]      = useState([]);
+  const [errores,      setErrores]      = useState<{ tipo: string; detalle: string }[]>([]);
   const [mostrarBv,    setMostrarBv]    = useState(recienIngresado);
 
   useEffect(() => {
-    function onKey(e) {
+    function onKey(e: KeyboardEvent) {
       if (e.ctrlKey && e.shiftKey && e.key === 'R') {
         e.preventDefault(); setConfirmReset(true);
       }
@@ -319,8 +335,8 @@ function PanelAdmin({ admin, onLogout, onActualizar, recienIngresado }) {
   useEffect(() => { if (estado) cargarHistorial(); }, [estado]);
 
   function cargarHistorial() {
-    api('/api/historial?limit=100').then(r => {
-      if (r.status === 401) onLogout(); else if (r.ok) setHistorial(r.data);
+    api<RegistroHistorial[]>('/api/historial?limit=100').then(r => {
+      if (r.status === 401) onLogout(); else if (r.ok) setHistorial(r.data as unknown as RegistroHistorial[]);
     });
   }
 
@@ -333,7 +349,7 @@ function PanelAdmin({ admin, onLogout, onActualizar, recienIngresado }) {
 
   useEffect(() => {
     if (!presencia) return;
-    const e = [];
+    const e: { tipo: string; detalle: string }[] = [];
     for (let i = 1; i <= 4; i++) {
       if (presencia.cajas?.[i]?.falla)
         e.push({ tipo: `Caja ${i}`, detalle: presencia.cajas[i].detalle });
@@ -344,6 +360,8 @@ function PanelAdmin({ admin, onLogout, onActualizar, recienIngresado }) {
   }, [presencia]);
 
   async function guardarConfig() {
+    const err = primerError(validarEstablecimiento(nombre), validarVolumen(volumen));
+    if (err) { setMsgGuardar(`⚠️ ${err}`); return; }
     const res = await api('/api/config', { method: 'POST', body: { establecimiento: nombre, volumen, silencio } });
     if (res.status === 401) return onLogout();
     if (res.ok) { setMsgGuardar('✅ Cambios guardados'); setTimeout(() => setMsgGuardar(''), 3000); }
@@ -357,7 +375,7 @@ function PanelAdmin({ admin, onLogout, onActualizar, recienIngresado }) {
     cargarHistorial();
   }
 
-  async function liberarCaja(caja) {
+  async function liberarCaja(caja: number) {
     if (!window.confirm(`¿Liberar la Caja ${caja}? La persona que la está usando perderá el acceso.`)) return;
     await api(`/api/caja/${caja}/liberar`, { method: 'POST' });
   }
@@ -367,7 +385,7 @@ function PanelAdmin({ admin, onLogout, onActualizar, recienIngresado }) {
     hablarTurno(22, 2, { volumen, repeticiones: 1 });
   }
 
-  async function toggleCaja(caja) {
+  async function toggleCaja(caja: number) {
     const nuevo = (cajasEstado[caja] || 'activa') === 'activa' ? 'inactiva' : 'activa';
     await api(`/api/caja/${caja}/estado`, { method: 'POST', body: { estado: nuevo } });
   }
@@ -593,22 +611,26 @@ function PanelAdmin({ admin, onLogout, onActualizar, recienIngresado }) {
 
 
 // ── Mi cuenta: contraseña y vínculos con Google / GitHub ─────────────────────
-function MiCuenta({ admin, onActualizar }) {
+function MiCuenta({ admin, onActualizar }: { admin: Administrador; onActualizar: (a: Administrador) => void }) {
   const [actual, setActual] = useState('');
   const [nueva,  setNueva]  = useState('');
   const [email,  setEmail]  = useState(admin.emails?.[0] || '');
   const [github, setGithub] = useState(admin.github || '');
   const [msg,    setMsg]    = useState('');
 
-  async function cambiarClave(e) {
+  async function cambiarClave(e: React.FormEvent) {
     e.preventDefault();
+    const err = validarClave(nueva);
+    if (err) { setMsg(`⚠️ ${err}`); return; }
     const r = await api('/api/auth/me/clave', { method: 'POST', body: { actual, nueva } });
     setMsg(r.ok ? '✅ Contraseña actualizada' : `⚠️ ${r.data.error}`);
     if (r.ok) { setActual(''); setNueva(''); onActualizar({ ...admin, debeCambiar: false }); }
   }
-  async function vincular(e) {
+  async function vincular(e: React.FormEvent) {
     e.preventDefault();
-    const r = await api('/api/auth/me/vinculos', { method: 'POST', body: { email, github } });
+    const err = primerError(validarCorreo(email), validarGithub(github));
+    if (err) { setMsg(`⚠️ ${err}`); return; }
+    const r = await api<{ admin: Administrador }>('/api/auth/me/vinculos', { method: 'POST', body: { email, github } });
     setMsg(r.ok ? '✅ Cuentas vinculadas' : `⚠️ ${r.data.error}`);
     if (r.ok) onActualizar(r.data.admin);
   }
@@ -641,22 +663,25 @@ function MiCuenta({ admin, onActualizar }) {
 }
 
 // ── Administradores (solo el principal puede crear / eliminar) ───────────────
-function Administradores({ admin }) {
-  const [lista, setLista] = useState([]);
+function Administradores({ admin }: { admin: Administrador }) {
+  const [lista, setLista] = useState<Administrador[]>([]);
   const [f, setF] = useState({ nombre: '', usuario: '', clave: '', rol: 'Administrador', email: '', github: '' });
   const [msg, setMsg] = useState('');
 
-  const cargar = () => api('/api/auth/admins').then(r => r.ok && setLista(r.data));
+  const cargar = () => api<Administrador[]>('/api/auth/admins').then(r => { if (r.ok) setLista(r.data as unknown as Administrador[]); });
   useEffect(() => { cargar(); }, []);
-  const set = k => e => setF({ ...f, [k]: e.target.value });
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
 
-  async function crear(e) {
+  async function crear(e: React.FormEvent) {
     e.preventDefault();
-    const r = await api('/api/auth/admins', { method: 'POST', body: f });
+    // Validación lógica en el navegador (el servidor la repite)
+    const err = primerError(validarNombreReal(f.nombre), validarUsuario(f.usuario), validarClave(f.clave), validarCorreo(f.email), validarGithub(f.github));
+    if (err) { setMsg(`⚠️ ${err}`); return; }
+    const r = await api<{ admin: Administrador }>('/api/auth/admins', { method: 'POST', body: f });
     setMsg(r.ok ? `✅ Administrador ${r.data.admin.nombre} creado` : `⚠️ ${r.data.error}`);
     if (r.ok) { setF({ nombre: '', usuario: '', clave: '', rol: 'Administrador', email: '', github: '' }); cargar(); }
   }
-  async function eliminar(a) {
+  async function eliminar(a: Administrador) {
     if (!window.confirm(`¿Eliminar a ${a.nombre}?`)) return;
     const r = await api(`/api/auth/admins/${a.id}`, { method: 'DELETE' });
     setMsg(r.ok ? '✅ Administrador eliminado' : `⚠️ ${r.data.error}`);
@@ -710,12 +735,12 @@ function Administradores({ admin }) {
 
 // ── Exportación: la sesión la decide el servidor (cookie HttpOnly) ───────────
 export default function AdminPage() {
-  const [admin, setAdmin]   = useState(null);
+  const [admin, setAdmin]   = useState<Administrador | null>(null);
   const [listo, setListo]   = useState(false);
   const [nuevo, setNuevo]   = useState(false);
 
   useEffect(() => {
-    api('/api/auth/me').then(r => {
+    api<{ admin: Administrador }>('/api/auth/me').then(r => {
       if (r.ok) {
         setAdmin(r.data.admin);
         // Tras volver de Google/GitHub (sesión recién creada) también se da la bienvenida

@@ -79,8 +79,7 @@ sigue usando la URL local:
 ```
 http://localhost:5173/admin
 ```
-Con usuario: Ganaadmin
-Con clave:   Gana123
+Usuario y contraseña: están en la carpeta credenciales/ (archivo administradores.json). Ver GUIA_TURNERO.md.
 
 ## Plan gratuito de Railway
 

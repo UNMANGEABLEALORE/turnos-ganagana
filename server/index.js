@@ -1,4 +1,5 @@
-﻿const express    = require('express');
+require('./credenciales');   // 1.º: carga credenciales/.env antes que cualquier otro módulo
+const express    = require('express');
 const http       = require('http');
 const { Server } = require('socket.io');
 const fs         = require('fs');
@@ -95,7 +96,17 @@ app.get('/api/config', (_req, res) => res.json({
 }));
 
 app.post('/api/config', auth.requireAdmin, (req, res) => {
-  const { establecimiento, volumen, silencio } = req.body;
+  const { establecimiento, volumen, silencio } = req.body || {};
+  // Validación lógica en el servidor (nunca se confía solo en el navegador)
+  if (establecimiento !== undefined && (typeof establecimiento !== 'string' || establecimiento.trim().length < 2 || establecimiento.length > 60 || /[<>]/.test(establecimiento))) {
+    return res.status(400).json({ ok: false, error: 'Nombre de establecimiento inválido (2 a 60 caracteres, sin < >).' });
+  }
+  if (volumen !== undefined && !(typeof volumen === 'number' && volumen >= 0 && volumen <= 1)) {
+    return res.status(400).json({ ok: false, error: 'El volumen debe ser un número entre 0 y 1.' });
+  }
+  if (silencio !== undefined && typeof silencio !== 'boolean') {
+    return res.status(400).json({ ok: false, error: 'El valor de silencio debe ser verdadero o falso.' });
+  }
   if (establecimiento !== undefined) setConfig('establecimiento', establecimiento);
   if (volumen         !== undefined) setConfig('volumen', volumen);
   if (silencio        !== undefined) setConfig('silencio', silencio);

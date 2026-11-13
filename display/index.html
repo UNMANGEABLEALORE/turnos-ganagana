@@ -299,6 +299,11 @@
     .btn-probar { position: fixed; right: 12px; bottom: 56px; z-index: 20; background: #fff; border: 1px solid #cfd8e3;
       border-radius: 10px; padding: 6px 12px; font-family: inherit; font-weight: 700; cursor: pointer; opacity: .75; }
     .btn-probar:hover { opacity: 1; background: #F8E704; }
+    .sel-voz { right: 150px; max-width: 260px; }
+    .llamada-flash { position: fixed; inset: 0; z-index: 900; pointer-events: none; opacity: 0;
+      border: clamp(8px, 1.2vw, 24px) solid #F8E704; box-shadow: inset 0 0 clamp(40px, 8vw, 160px) rgba(248,231,4,.75); }
+    .llamada-flash.on { animation: llamada-flash .7s ease-in-out 4; }
+    @keyframes llamada-flash { 0%,100% { opacity: 0; } 50% { opacity: 1; } }
     @media (max-aspect-ratio: 1/1) {
       .main-area { flex-direction: column; justify-content: center; padding: 2vh 4vw; }
       .turno-principal { width: 100%; padding: 2vh 4vw; }
@@ -367,6 +372,8 @@
 
 <!-- Audio de notificación generado con Web Audio API -->
 <audio id="audioEl" preload="auto"></audio>
+<div id="llamadaFlash" class="llamada-flash" aria-hidden="true"></div>
+<select id="selVoz" class="btn-probar sel-voz" aria-label="Elegir voz" onchange="cambiarVoz(this.value)" style="display:none"></select>
 <button class="btn-probar" onclick="probarVoz()" title="Probar campanilla y voz">🔊 Probar voz</button>
 
 <script>
@@ -387,6 +394,8 @@ function activarPantalla() {
 
   iniciarSocket();
   iniciarReloj();
+  llenarSelectorVoz();
+  setTimeout(llenarSelectorVoz, 1500);
 }
 
 // ── Reloj ──────────────────────────────────────────────────────────────────
@@ -413,6 +422,7 @@ function fmt(n) {
 
 // ── Voz de llamado (SpeechSynthesis, español) ──────────────────────────────
 const NOMBRE_LETRA = { A:'a',B:'be',C:'ce',D:'de',E:'e',F:'efe',G:'ge',H:'hache',I:'i',J:'jota',K:'ka',L:'ele',M:'eme',N:'ene',O:'o',P:'pe',Q:'cu',R:'erre',S:'ese',T:'te',U:'u',V:'uve',W:'uve doble',X:'equis',Y:'ye',Z:'zeta' };
+const PALABRA_LETRA = { A:'Ana',B:'Bogotá',C:'Cali',D:'Diana',E:'Elena',F:'Fernando',G:'Gloria',H:'Hugo',I:'Isabel',J:'Juan',K:'Kilo',L:'Luis',M:'María',N:'Nancy',O:'Óscar',P:'Pedro',Q:'Quito',R:'Rosa',S:'Sandra',T:'Tolima',U:'Uruguay',V:'Valentina',W:'Washington',X:'Xilófono',Y:'Yolanda',Z:'Zapato' };
 const UNIDADES  = ['cero','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve'];
 const ESPECIALES= ['diez','once','doce','trece','catorce','quince','dieciséis','diecisiete','dieciocho','diecinueve'];
 const VEINTES   = ['veinte','veintiuno','veintidós','veintitrés','veinticuatro','veinticinco','veintiséis','veintisiete','veintiocho','veintinueve'];
@@ -424,42 +434,81 @@ function numeroEnPalabras(n) {
   const d = Math.floor(n / 10), u = n % 10;
   return u === 0 ? DECENAS[d] : DECENAS[d] + ' y ' + UNIDADES[u];
 }
-function textoVoz(turno, caja) {
+function partesVoz(turno, caja) {
   const num = parseInt(turno, 10);
   const letra = String.fromCharCode(65 + (Math.floor(num / 100) % 26));
   const resto = num % 100;
   const numTxt = resto === 0 ? 'cero cero' : numeroEnPalabras(resto);
-  return 'Turno ' + NOMBRE_LETRA[letra] + ', ' + numTxt + '. Diríjase a la caja número ' + caja + '.';
+  const digitos = UNIDADES[Math.floor(resto / 10)] + ', ' + UNIDADES[resto % 10];
+  return [
+    'Atención. Turno, letra ' + NOMBRE_LETRA[letra] + ', de ' + PALABRA_LETRA[letra] + '.',
+    'Número ' + numTxt + '. ' + digitos + '.',
+    'Diríjase a la caja número ' + (UNIDADES[Number(caja)] !== undefined ? UNIDADES[Number(caja)] : caja) + '.'
+  ];
 }
+function textoVoz(turno, caja) { return partesVoz(turno, caja).join(' '); }
 let vozES = null;
-function elegirVoz() {
-  if (!('speechSynthesis' in window)) return null;
-  const v = speechSynthesis.getVoices().filter(x => (x.lang || '').toLowerCase().startsWith('es'));
-  for (const p of ['es-co','es-mx','es-us','es-es']) {
-    const f = v.find(x => x.lang.toLowerCase().replace('_','-') === p);
-    if (f) return f;
-  }
-  return v[0] || null;
+function puntajeVoz(v) {
+  const lang = (v.lang || '').toLowerCase().replace('_', '-');
+  let p = 0;
+  if (/natural|neural|online/i.test(v.name)) p += 100;
+  if (/google/i.test(v.name)) p += 40;
+  p += ({ 'es-co': 30, 'es-mx': 25, 'es-us': 20, 'es-es': 10 })[lang] || 0;
+  if (/salome|dalia|elvira|paloma|sabina|helena|laura|jorge|alonso/i.test(v.name)) p += 8;
+  return p;
 }
-if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => { vozES = elegirVoz(); };
-// Siempre intenta hablar; si no hay voz en español usa la voz por defecto con lang es-CO
+function listarVoces() {
+  if (!('speechSynthesis' in window)) return [];
+  return speechSynthesis.getVoices().filter(x => (x.lang || '').toLowerCase().startsWith('es'))
+    .sort((a, b) => puntajeVoz(b) - puntajeVoz(a));
+}
+function elegirVoz() {
+  const v = listarVoces();
+  const guardada = localStorage.getItem('gg_voz');
+  return v.find(x => x.name === guardada) || v[0] || null;
+}
+function llenarSelectorVoz() {
+  const sel = document.getElementById('selVoz');
+  if (!sel) return;
+  const voces = listarVoces();
+  const actual = localStorage.getItem('gg_voz') || '';
+  sel.innerHTML = '<option value="">Voz automática (la más clara)</option>' +
+    voces.map(v => '<option value="' + v.name + '"' + (v.name === actual ? ' selected' : '') + '>' + v.name + '</option>').join('');
+  sel.style.display = voces.length ? '' : 'none';
+}
+function cambiarVoz(nombre) {
+  if (nombre) localStorage.setItem('gg_voz', nombre); else localStorage.removeItem('gg_voz');
+  vozES = elegirVoz();
+}
+if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => { vozES = elegirVoz(); llenarSelectorVoz(); };
+
+// Habla despacio, en frases con pausa, y repite dos veces. Siempre intenta hablar.
+function hablarRonda(partes, alTerminar) {
+  partes.forEach((txt, i) => {
+    const u = new SpeechSynthesisUtterance(txt);
+    if (vozES) { u.voice = vozES; u.lang = vozES.lang; } else { u.lang = 'es-CO'; }
+    u.volume = Math.max(0.4, Math.min(1, cfgVolumen));
+    u.rate = 0.8; u.pitch = 0.95;
+    u.onerror = e => console.warn('Voz:', e.error);
+    if (i === partes.length - 1 && alTerminar) u.onend = alTerminar;
+    speechSynthesis.speak(u);
+  });
+}
 function hablarTurno(turno, caja) {
   if (!('speechSynthesis' in window)) return false;
   vozES = vozES || elegirVoz();
   if (speechSynthesis.paused) speechSynthesis.resume();
-  for (let i = 0; i < 2; i++) {
-    const u = new SpeechSynthesisUtterance(textoVoz(turno, caja));
-    if (vozES) { u.voice = vozES; u.lang = vozES.lang; } else { u.lang = 'es-CO'; }
-    u.volume = Math.max(0.3, Math.min(1, cfgVolumen));
-    u.rate = 0.9;
-    u.onerror = e => console.warn('Voz:', e.error);
-    speechSynthesis.speak(u);
-  }
+  const partes = partesVoz(turno, caja);
+  let restantes = 2;
+  const ronda = () => { restantes -= 1; hablarRonda(partes, restantes > 0 ? () => setTimeout(ronda, 1200) : null); };
+  ronda();
   return true;
 }
-// Campanilla + voz
+// Campanilla + voz + aviso visual
 function anunciar(turno, caja) {
   if (cfgSilencio) return;
+  const fl = document.getElementById('llamadaFlash');
+  if (fl) { fl.classList.remove('on'); void fl.offsetWidth; fl.classList.add('on'); }
   playDing();
   setTimeout(() => hablarTurno(turno, caja), 1000);
 }

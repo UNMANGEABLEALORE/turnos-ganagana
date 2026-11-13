@@ -8,6 +8,7 @@
 const crypto  = require('crypto');
 const express = require('express');
 const sec     = require('./security');
+const cred    = require('./credenciales');   // lee credenciales/.env ANTES de usar process.env
 const { getAdmins, setAdmins, getSessionSecret } = require('./db');
 
 const COOKIE_SESION = 'gg_sid';
@@ -49,29 +50,49 @@ function formatearNombre(n) {
 }
 
 // ── Almacén de administradores ───────────────────────────────────────────────
+// Los administradores iniciales NUNCA están en el código. Se leen de:
+//   1) credenciales/administradores.json  (local)
+//   2) variables ADMIN_PRINCIPAL_* (Render)
+//   3) si no hay nada, se crea el principal con una contraseña aleatoria y se guarda en credenciales/
+const AVATARES = ['👨‍💼', '👩‍💼', '🧑‍💼'];
+
 function semilla() {
-  const pw = (env, def) => process.env[env] || def;
-  const principalPw = pw('ADMIN_PRINCIPAL_PASSWORD', 'Gana123');
-  return [
-    {
-      id: 1, usuario: 'Ganaadmin', nombre: 'Juan David Porras', rol: 'Administrador Principal',
-      saludo: 'Todo el sistema de turnos está listo para la jornada.', avatar: '👨‍💼',
-      hash: sec.hashPassword(principalPw), principal: true,
-      emails: process.env.ADMIN_PRINCIPAL_EMAIL ? [process.env.ADMIN_PRINCIPAL_EMAIL.toLowerCase()] : [],
+  let entradas = cred.leerAdministradores();
+
+  if (!entradas || entradas.length === 0) {
+    const deEntorno = !!process.env.ADMIN_PRINCIPAL_PASSWORD;
+    const clave = process.env.ADMIN_PRINCIPAL_PASSWORD || cred.claveAleatoria();
+    entradas = [{
+      usuario: process.env.ADMIN_PRINCIPAL_USER || 'Ganaadmin',
+      clave,
+      nombre: process.env.ADMIN_PRINCIPAL_NAME || 'Juan David Porras',
+      rol: 'Administrador Principal',
+      saludo: 'Todo el sistema de turnos está listo para la jornada.',
+      email: process.env.ADMIN_PRINCIPAL_EMAIL || '',
       github: process.env.ADMIN_PRINCIPAL_GITHUB || '',
-      debeCambiar: !process.env.ADMIN_PRINCIPAL_PASSWORD
-    },
-    {
-      id: 2, usuario: 'admin2', nombre: 'María González', rol: 'Supervisora de Cajas',
-      saludo: 'Las cajas están listas para atender a los clientes.', avatar: '👩‍💼',
-      hash: sec.hashPassword('Turno2024'), principal: false, emails: [], github: '', debeCambiar: true
-    },
-    {
-      id: 3, usuario: 'admin3', nombre: 'Carlos Ramírez', rol: 'Coordinador de Servicio',
-      saludo: 'Revisa el panel y que tengas un excelente día de trabajo.', avatar: '🧑‍💼',
-      hash: sec.hashPassword('Gana456'), principal: false, emails: [], github: '', debeCambiar: true
+      principal: true
+    }];
+    if (!deEntorno) {
+      const ruta = cred.guardarAdministradores(entradas);
+      console.log(`\n🔐 Se creó el administrador principal con una contraseña aleatoria.`);
+      console.log(ruta ? `   Ábrela en: ${ruta}` : '   No se pudo guardar el archivo.');
+      // En Render no hay forma de abrir el archivo: se muestra una sola vez en el registro
+      if (process.env.RENDER || !ruta) console.log(`   Usuario: ${entradas[0].usuario}  ·  Contraseña inicial: ${clave}\n   (define ADMIN_PRINCIPAL_PASSWORD en Render para fijarla)`);
     }
-  ];
+  }
+
+  return entradas.map((e, i) => {
+    const err = validarNombreReal(e.nombre);
+    if (err) console.warn(`⚠️  Administrador "${e.usuario}": ${err}`);
+    return {
+      id: i + 1, usuario: String(e.usuario), nombre: formatearNombre(String(e.nombre || e.usuario)),
+      rol: e.rol || 'Administrador', saludo: e.saludo || 'Tu acceso al panel está listo.',
+      avatar: e.avatar || AVATARES[i % AVATARES.length],
+      hash: sec.hashPassword(String(e.clave)), principal: !!e.principal || i === 0,
+      emails: e.email ? [String(e.email).toLowerCase()] : [], github: e.github || '',
+      debeCambiar: !!e.debeCambiar
+    };
+  });
 }
 
 function admins() {
@@ -323,5 +344,8 @@ router.post('/me/vinculos', requireAdmin, (req, res) => {
   setAdmins(lista);
   res.json({ ok: true, admin: publico(a) });
 });
+
+// Crea los administradores iniciales al arrancar (y genera credenciales/administradores.json si hace falta)
+admins();
 
 module.exports = { router, requireAdmin, adminDeCookie, validarNombreReal };

@@ -1,17 +1,27 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import socket from '../socket';
+import type {
+  AckSocket, ConfigSistema, EstadoCaja, EstadoSistema, Presencia
+} from '../types';
+import { validarCaja } from '../utils/validaciones';
 
 // Identificador del equipo/pestaña: sobrevive a recargas (sessionStorage) pero NO se
 // comparte entre equipos ni entre pestañas distintas. Sirve para que el servidor
 // distinga "la misma cajera que recargó" de "otra persona que quiere entrar".
-function obtenerClientId() {
+function obtenerClientId(): string {
   let id = sessionStorage.getItem('gg_cid');
   if (!id) {
-    id = (crypto.randomUUID?.() || String(Math.random()).slice(2) + Date.now());
+    id = crypto.randomUUID?.() || String(Math.random()).slice(2) + Date.now();
     sessionStorage.setItem('gg_cid', id);
   }
   return id;
 }
+
+type TipoCliente = 'caja' | 'pantalla' | 'admin';
+
+interface OpcionesSocket { tipo?: TipoCliente; caja?: number | null; }
+
+interface NuevoTurnoEvento { turno: number; caja: number; estado?: EstadoSistema; }
 
 /**
  * useSocket({ tipo, caja })
@@ -19,18 +29,19 @@ function obtenerClientId() {
  *   caja: 1-4 (solo cuando tipo='caja')
  * bloqueoCaja: texto con el motivo si la caja está en uso por otro equipo (o se perdió).
  */
-export function useSocket({ tipo = 'caja', caja = null } = {}) {
-  const [connected,  setConnected]  = useState(socket.connected);
-  const [estado,     setEstado]     = useState(null);
-  const [config,     setConfig]     = useState(null);
-  const [presencia,  setPresencia]  = useState(null);
-  const [cajasEstado, setCajasEstado] = useState({ 1:'activa',2:'activa',3:'activa',4:'activa' });
-  const [bloqueoCaja, setBloqueoCaja] = useState('');
+export function useSocket({ tipo = 'caja', caja = null }: OpcionesSocket = {}) {
+  const [connected,   setConnected]   = useState<boolean>(socket.connected);
+  const [estado,      setEstado]      = useState<EstadoSistema | null>(null);
+  const [config,      setConfig]      = useState<ConfigSistema | null>(null);
+  const [presencia,   setPresencia]   = useState<Presencia | null>(null);
+  const [cajasEstado, setCajasEstado] = useState<Record<number, EstadoCaja>>({ 1: 'activa', 2: 'activa', 3: 'activa', 4: 'activa' });
+  const [bloqueoCaja, setBloqueoCaja] = useState<string>('');
 
-  const hbRef = useRef(null);
+  const hbRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const desplazadaRef = useRef(false);   // si me quitaron la caja, no la recupero sola al reconectar
+
   const identificar = useCallback(() => {
-    socket.emit('identificar', { tipo, caja, clientId: obtenerClientId() }, (resp) => {
+    socket.emit('identificar', { tipo, caja, clientId: obtenerClientId() }, (resp?: AckSocket) => {
       if (resp?.ok) setBloqueoCaja('');
       else if (tipo === 'caja') setBloqueoCaja(resp?.error || 'No se pudo ocupar la caja');
     });
@@ -46,27 +57,29 @@ export function useSocket({ tipo = 'caja', caja = null } = {}) {
     function onConnect()    { setConnected(true); arrancar(); }
     function onDisconnect() { setConnected(false); clearInterval(hbRef.current); }
 
-    function onEstado(data) {
+    function onEstado(data: EstadoSistema) {
       setEstado(data);
       if (data.cajasEstado) setCajasEstado(data.cajasEstado);
     }
 
-    function onNuevoTurno(data) {
+    function onNuevoTurno(data: NuevoTurnoEvento) {
       if (data.estado) {
         setEstado(data.estado);
         if (data.estado.cajasEstado) setCajasEstado(data.estado.cajasEstado);
       }
     }
 
-    function onConfig(data)     { setConfig(data); }
-    function onPresencia(data)  { setPresencia(data); }
-    function onCajaEstado(data) {
+    function onConfig(data: ConfigSistema)    { setConfig(data); }
+    function onPresencia(data: Presencia)     { setPresencia(data); }
+    function onCajaEstado(data: { caja: number; estado: EstadoCaja }) {
       setCajasEstado(prev => ({ ...prev, [data.caja]: data.estado }));
     }
     // Otro equipo/pestaña tomó la caja, o el admin la liberó
-    function onDesplazada(data) {
-      if (tipo === 'caja' && data?.caja === caja) desplazadaRef.current = true;
-      if (tipo === 'caja' && data?.caja === caja) setBloqueoCaja(data.motivo || 'Esta caja fue cerrada en este equipo.');
+    function onDesplazada(data: { caja: number; motivo?: string }) {
+      if (tipo === 'caja' && data?.caja === caja) {
+        desplazadaRef.current = true;
+        setBloqueoCaja(data.motivo || 'Esta caja fue cerrada en este equipo.');
+      }
     }
 
     socket.on('connect',               onConnect);
@@ -93,13 +106,12 @@ export function useSocket({ tipo = 'caja', caja = null } = {}) {
     };
   }, [tipo, caja, identificar]);
 
-  function llamarTurno(numCaja) {
+  function llamarTurno(numCaja: number): Promise<AckSocket> {
     return new Promise((resolve, reject) => {
-      if (!socket.connected) {
-        reject(new Error('Sin conexión con el servidor'));
-        return;
-      }
-      socket.emit('llamar_turno', { caja: numCaja }, (resp) => {
+      const errCaja = validarCaja(numCaja);          // validación lógica antes de enviar
+      if (errCaja) { reject(new Error(errCaja)); return; }
+      if (!socket.connected) { reject(new Error('Sin conexión con el servidor')); return; }
+      socket.emit('llamar_turno', { caja: numCaja }, (resp?: AckSocket) => {
         if (resp?.ok) resolve(resp);
         else reject(new Error(resp?.error || 'Error desconocido'));
       });

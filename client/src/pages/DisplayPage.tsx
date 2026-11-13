@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSocket } from '../hooks/useSocket';
 import { formatTurno } from '../utils/formato';
-import { hablarTurno, infoVoz } from '../utils/voz';
+import { hablarTurno, infoVoz, listarVoces, elegirVozManual } from '../utils/voz';
+import type { TurnoLlamado } from '../types';
 import './DisplayPage.css';
 
-const CAJA_COLORES = {
+const CAJA_COLORES: Record<number, string> = {
   1: '#A8D5E2',
   2: '#B5EAD7',
   3: '#C9C0E8',
@@ -15,14 +16,14 @@ export default function DisplayPage() {
   const { connected, estado, config } = useSocket({ tipo: 'pantalla' });
 
   // Audio
-  const audioCtx   = useRef(null);
+  const audioCtx   = useRef<AudioContext | null>(null);
   const [activado, setActivado] = useState(false);
   const [silencio, setSilencio] = useState(false);
   const volumenRef = useRef(1);
 
   // Animación
   const [animKey, setAnimKey] = useState(0);
-  const ultimoIdRef = useRef(null);
+  const ultimoIdRef = useRef<string | null>(null);
 
   // Estado de pantalla
   const ultimos  = estado?.ultimos || [];
@@ -65,7 +66,7 @@ export default function DisplayPage() {
 
   // Llama por voz; si el navegador no tiene voz en español, usa la campanilla de respaldo
   // Primero suena la campanilla y enseguida la voz ("Turno a, veintidós. Diríjase a la caja número 2")
-  function anunciar(t) {
+  function anunciar(t: TurnoLlamado) {
     if (silencio) return;
     playDing();
     setTimeout(() => {
@@ -74,9 +75,11 @@ export default function DisplayPage() {
   }
 
   const [vozTxt, setVozTxt] = useState({ ok: true, texto: '' });
+  const [voces, setVoces] = useState<string[]>([]);
+  const [vozSel, setVozSel] = useState<string>(localStorage.getItem('gg_voz') || '');
   useEffect(() => {
     if (!activado) return;
-    const refrescar = () => setVozTxt(infoVoz());
+    const refrescar = () => { setVozTxt(infoVoz()); setVoces(listarVoces().map(v => v.name)); };
     refrescar();
     const t = setInterval(refrescar, 2000);     // las voces cargan de forma asíncrona
     return () => clearInterval(t);
@@ -89,7 +92,7 @@ export default function DisplayPage() {
       u.volume = 0;
       window.speechSynthesis.speak(u);
     }
-    audioCtx.current = new (window.AudioContext || window.webkitAudioContext)();
+    audioCtx.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     setActivado(true);
   }
 
@@ -118,7 +121,7 @@ export default function DisplayPage() {
         g.gain.exponentialRampToValueAtTime(0.9, ini + 0.015);
         g.gain.exponentialRampToValueAtTime(0.001, ini + 0.7);
         g.connect(master);
-        [['triangle', freq], ['sine', freq * 2]].forEach(([tipo, f]) => {
+        ([['triangle', freq], ['sine', freq * 2]] as [OscillatorType, number][]).forEach(([tipo, f]) => {
           const o = ctx.createOscillator();
           o.type = tipo; o.frequency.value = f;
           o.connect(g); o.start(ini); o.stop(ini + 0.75);
@@ -147,6 +150,8 @@ export default function DisplayPage() {
 
   return (
     <div className="dp-screen">
+      {/* Aviso visual para personas con dificultad auditiva: parpadea cada vez que se llama un turno */}
+      {animKey > 0 && <div key={`flash-${animKey}`} className="dp-llamada-flash" aria-hidden="true" />}
       {/* ── Header ─────────────────────────────────────────────────── */}
       <header className="dp-header">
         <div className="dp-header-logo">🎟️</div>
@@ -158,6 +163,13 @@ export default function DisplayPage() {
             {connected ? 'En línea' : 'Sin conexión'}
           </span>
           {silencio && <span className="dp-muted">🔇</span>}
+          {voces.length > 0 && (
+            <select className="dp-test-voz" value={vozSel} aria-label="Elegir voz"
+              onChange={e => { setVozSel(e.target.value); elegirVozManual(e.target.value); }}>
+              <option value="">Voz automática (la más clara)</option>
+              {voces.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          )}
           <button className="dp-test-voz" onClick={() => anunciar({ turno: 22, caja: 2 })}
             title={vozTxt.texto}>🔊 Probar voz</button>
         </div>

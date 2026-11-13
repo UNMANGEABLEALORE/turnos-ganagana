@@ -6,3 +6,8 @@ server/store.json
 server/certs/
 .env.local
 *.log
+
+# Credenciales: nada de esto se sube (solo las plantillas ejemplo.* y el LEEME)
+credenciales/.env
+credenciales/administradores.json
+credenciales/sesion.secret
