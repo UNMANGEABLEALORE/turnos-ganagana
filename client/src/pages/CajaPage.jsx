@@ -17,7 +17,7 @@ export default function CajaPage() {
     return null;
   }
 
-  const { connected, estado, config, cajasEstado, llamarTurno } = useSocket({ tipo: 'caja', caja: cajaNum });
+  const { connected, estado, config, cajasEstado, llamarTurno, bloqueoCaja, reintentarCaja } = useSocket({ tipo: 'caja', caja: cajaNum });
   const estaActiva = cajasEstado?.[cajaNum] !== 'inactiva';
 
   const [ultimoTurno, setUltimoTurno] = useState(null);
@@ -37,7 +37,7 @@ export default function CajaPage() {
   }, [estado, cajaNum]);
 
   const ejecutarLlamado = useCallback(async () => {
-    if (bloqueado.current || cargando || !connected || !estaActiva) return;
+    if (bloqueado.current || cargando || !connected || !estaActiva || bloqueoCaja) return;
 
     bloqueado.current = true;
     setCargando(true);
@@ -58,7 +58,7 @@ export default function CajaPage() {
       // Desbloquear después de 800 ms para evitar rebote
       setTimeout(() => { bloqueado.current = false; }, 800);
     }
-  }, [cajaNum, cargando, connected, llamarTurno]);
+  }, [cajaNum, cargando, connected, llamarTurno, bloqueoCaja]);
 
   // Tecla F9 — solo cuando el foco NO está en un input/select/textarea
   useEffect(() => {
@@ -82,6 +82,23 @@ export default function CajaPage() {
 
   return (
     <div className={`caja-page caja-bg-${color}`}>
+      {/* Caja en uso por otra persona / equipo: se bloquea todo */}
+      {bloqueoCaja && (
+        <div className="caja-bloqueo" role="alertdialog" aria-live="assertive">
+          <div className="caja-bloqueo-box">
+            <div className="caja-bloqueo-icono">🔒</div>
+            <h2>Caja {cajaNum} no disponible</h2>
+            <p>{bloqueoCaja}</p>
+            <p className="caja-bloqueo-sub">
+              Si es un error, pide al administrador que libere la caja o intenta de nuevo.
+            </p>
+            <div className="caja-bloqueo-btns">
+              <button className="btn btn-sky" onClick={reintentarCaja}>🔄 Reintentar</button>
+              <button className="btn btn-peach" onClick={() => navigate('/')}>← Elegir otra caja</button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <header className="caja-header">
         <button className="btn-back" onClick={() => navigate('/')} title="Volver al selector">
@@ -133,7 +150,7 @@ export default function CajaPage() {
           <button
             className={`btn btn-${color} btn-llamar`}
             onClick={ejecutarLlamado}
-            disabled={!connected || cargando || !estaActiva}
+            disabled={!connected || cargando || !estaActiva || !!bloqueoCaja}
           >
             {cargando ? '⏳ Asignando...' : '📣 Llamar siguiente turno'}
           </button>

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * db.js — Persistencia sin dependencias nativas (store.json)
  * Node.js es single-threaded → las escrituras síncronas son atómicas.
  */
@@ -6,9 +6,10 @@
 const fs   = require('fs');
 const path = require('path');
 
-const STORE_PATH = process.env.RAILWAY_ENVIRONMENT
-  ? '/tmp/store.json'          // Railway usa /tmp para archivos temporales
-  : path.join(__dirname, 'store.json');  // Local: junto al servidor
+const STORE_PATH = process.env.STORE_PATH            // pruebas / ruta personalizada
+  || (process.env.RAILWAY_ENVIRONMENT
+    ? '/tmp/store.json'                              // Railway usa /tmp para archivos temporales
+    : path.join(__dirname, 'store.json'));           // Local: junto al servidor
 
 function valorInicial() {
   return {
@@ -141,3 +142,4 @@ module.exports = {
   asignarTurno, getHistorial,
   resetContador, getEstado
 };
+

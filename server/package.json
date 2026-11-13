@@ -1,10 +1,11 @@
-{
+﻿{
   "name": "turnos-server",
   "version": "1.0.0",
   "description": "Servidor del sistema de turnos GanaGana",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "test": "node pruebas.js",
     "dev": "nodemon index.js"
   },
   "dependencies": {
@@ -16,3 +17,4 @@
     "nodemon": "^3.1.0"
   }
 }
+

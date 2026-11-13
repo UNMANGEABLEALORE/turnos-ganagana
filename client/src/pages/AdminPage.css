@@ -640,3 +640,10 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+.ts-liberar {
+  margin-top: 6px; background: #fff7c2; border: 1px solid #F8E704; color: #5c5300;
+  border-radius: 8px; padding: 6px 10px; font-family: inherit; font-size: .78rem; font-weight: 700;
+  cursor: pointer; transition: background .15s, transform .12s;
+}
+.ts-liberar:hover { background: #F8E704; transform: translateY(-1px); }

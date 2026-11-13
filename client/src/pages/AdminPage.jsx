@@ -1,7 +1,8 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSocket } from '../hooks/useSocket';
 import { formatTurno } from '../utils/formato';
+import { hablarTurno, vozDisponible } from '../utils/voz';
 import './AdminPage.css';
 
 // En desarrollo Vite hace proxy de /api → así la cookie de sesión es del mismo origen.
@@ -242,7 +243,7 @@ function BienvenidaModal({ admin, onCerrar }) {
 
 // ── Tarjeta de estado ─────────────────────────────────────────────────────────
 function TarjetaEstado({ titulo, icono, color, conectada, falla, detalle,
-                          estadoAdmin, turno, onToggle, esPanel = false }) {
+                          estadoAdmin, turno, onToggle, onLiberar, esPanel = false }) {
   let label, cls;
   if (estadoAdmin === 'inactiva') { label = 'DESACTIVADA'; cls = 'ts-inactiva'; }
   else if (falla)                  { label = 'FALLA';        cls = 'ts-falla';    }
@@ -280,8 +281,11 @@ function TarjetaEstado({ titulo, icono, color, conectada, falla, detalle,
         )}
         <div className="ts-conn-dot-wrap">
           <span className={`ts-conn-dot ${conectada ? 'ts-conn-dot--on' : 'ts-conn-dot--off'}`} />
-          <span className="ts-conn-txt">{conectada ? 'Conectada' : 'Sin conexión'}</span>
+          <span className="ts-conn-txt">{conectada ? 'En uso' : 'Libre / sin conexión'}</span>
         </div>
+        {onLiberar && conectada && (
+          <button className="ts-liberar" onClick={onLiberar}>🔓 Liberar caja</button>
+        )}
       </div>
     </div>
   );
@@ -347,10 +351,20 @@ function PanelAdmin({ admin, onLogout, onActualizar, recienIngresado }) {
 
   async function reiniciar() {
     await api('/api/reset', { method: 'POST' });
-    setMsgReset('✅ Contador reiniciado a 000');
+    setMsgReset('✅ Contador reiniciado a A00');
     setConfirmReset(false);
     setTimeout(() => setMsgReset(''), 4000);
     cargarHistorial();
+  }
+
+  async function liberarCaja(caja) {
+    if (!window.confirm(`¿Liberar la Caja ${caja}? La persona que la está usando perderá el acceso.`)) return;
+    await api(`/api/caja/${caja}/liberar`, { method: 'POST' });
+  }
+
+  function probarVoz() {
+    if (!vozDisponible()) { setMsgGuardar('⚠️ Este navegador no tiene voz en español'); return; }
+    hablarTurno(22, 2, { volumen, repeticiones: 1 });
   }
 
   async function toggleCaja(caja) {
@@ -438,6 +452,7 @@ function PanelAdmin({ admin, onLogout, onActualizar, recienIngresado }) {
                 estadoAdmin={cajasEstado[num] || 'activa'}
                 turno={estado?.cajas?.[num]?.turno ?? null}
                 onToggle={() => toggleCaja(num)}
+                onLiberar={() => liberarCaja(num)}
               />
             ))}
             <TarjetaEstado
@@ -475,7 +490,7 @@ function PanelAdmin({ admin, onLogout, onActualizar, recienIngresado }) {
             <div>
               <h2 style={{ marginBottom: 6 }}>Reiniciar contador</h2>
               <p className="admin-warn-txt">
-                Vuelve la numeración a 000. Solo al inicio de la jornada.<br />
+                Vuelve la numeración a A00. Solo al inicio de la jornada.<br />
                 Atajo: <kbd>Ctrl + Shift + R</kbd>
               </p>
               {msgReset && <p className="admin-msg">{msgReset}</p>}
@@ -486,7 +501,7 @@ function PanelAdmin({ admin, onLogout, onActualizar, recienIngresado }) {
               </button>
             ) : (
               <div className="reset-confirm-inline">
-                <p>¿Confirmas reiniciar a <strong>000</strong>?</p>
+                <p>¿Confirmas reiniciar a <strong>A00</strong>?</p>
                 <div style={{ display:'flex', gap:10 }}>
                   <button className="btn-reset-rojo" onClick={reiniciar}>✅ Confirmar</button>
                   <button className="btn btn-sky" onClick={() => setConfirmReset(false)}>Cancelar</button>
@@ -506,7 +521,7 @@ function PanelAdmin({ admin, onLogout, onActualizar, recienIngresado }) {
               placeholder="Ej: GanaGana Centro" />
           </div>
           <div className="form-group">
-            <label>Volumen del sonido de turnos (100% = máximo y amplificado)</label>
+            <label>Volumen de la voz de llamado</label>
             <div className="volumen-row">
               <input type="range" min="0" max="1" step="0.05" value={volumen}
                 onChange={e => setVolumen(parseFloat(e.target.value))} />
@@ -521,6 +536,7 @@ function PanelAdmin({ admin, onLogout, onActualizar, recienIngresado }) {
             </label>
           </div>
           <button className="btn-gg-primary" onClick={guardarConfig}>💾 Guardar cambios</button>
+          &nbsp;<button className="btn btn-sky" onClick={probarVoz}>🔊 Probar voz (A22, caja 2)</button>
           {msgGuardar && <p className="admin-msg">{msgGuardar}</p>}
         </section>
 

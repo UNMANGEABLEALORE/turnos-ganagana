@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useRef, useState } from 'react';
 import { useSocket } from '../hooks/useSocket';
 import { formatTurno } from '../utils/formato';
+import { hablarTurno } from '../utils/voz';
 import './DisplayPage.css';
 
 const CAJA_COLORES = {
@@ -58,11 +59,24 @@ export default function DisplayPage() {
     if (id !== ultimoIdRef.current) {
       ultimoIdRef.current = id;
       setAnimKey(k => k + 1);
-      playDing();
+      anunciar(actual);
     }
   }, [actual]);
 
+  // Llama por voz; si el navegador no tiene voz en español, usa la campanilla de respaldo
+  function anunciar(t) {
+    if (silencio) return;
+    const ok = hablarTurno(t.turno, t.caja, { volumen: volumenRef.current, repeticiones: 2 });
+    if (!ok) playDing();
+  }
+
   function activar() {
+    // Desbloquea la síntesis de voz con un gesto del usuario
+    if ('speechSynthesis' in window) {
+      const u = new SpeechSynthesisUtterance(' ');
+      u.volume = 0;
+      window.speechSynthesis.speak(u);
+    }
     audioCtx.current = new (window.AudioContext || window.webkitAudioContext)();
     setActivado(true);
   }
@@ -112,7 +126,7 @@ export default function DisplayPage() {
             ▶ Activar pantalla
           </button>
           <span className="dp-activate-hint">
-            Haz clic para habilitar el sonido de notificaciones
+            Haz clic para habilitar la voz que llama los turnos
           </span>
         </div>
       </div>
@@ -196,4 +210,5 @@ export default function DisplayPage() {
     </div>
   );
 }
+
 

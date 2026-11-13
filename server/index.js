@@ -139,22 +139,101 @@ app.get('/api/cajas/estado', (_req, res) => res.json(getCajasEstado()));
 
 // ── Socket.IO ─────────────────────────────────────────────────────────────────
 
+// ── Exclusividad de caja ─────────────────────────────────────────────────────
+// Una caja solo puede estar en uso por UN equipo a la vez.
+//  - Cada navegador genera un clientId (sessionStorage) y lo envía al identificarse.
+//  - Mismo clientId (recarga / reconexión)  → recupera su caja y expulsa la sesión vieja.
+//  - Otro clientId con la caja en uso        → se rechaza.
+//  - Si el dueño se desconecta, su caja queda reservada GRACIA_MS por si solo recarga.
+const GRACIA_MS = parseInt(process.env.GRACIA_MS) || 15000;
+const ocupacion = {}; // caja → { clientId, socketId, liberadaEn }
+
+function socketVivo(id) { return !!id && io.sockets.sockets.has(id); }
+
+function intentarOcupar(socket, caja, clientId) {
+  const occ   = ocupacion[caja];
+  const ahora = Date.now();
+
+  if (occ) {
+    const vivo = socketVivo(occ.socketId) && occ.socketId !== socket.id;
+    if (vivo && occ.clientId !== clientId) {
+      return { ok: false, error: `La Caja ${caja} ya está siendo usada por otra persona o equipo.` };
+    }
+    if (!vivo && occ.liberadaEn && occ.clientId !== clientId && ahora - occ.liberadaEn < GRACIA_MS) {
+      const seg = Math.ceil((GRACIA_MS - (ahora - occ.liberadaEn)) / 1000);
+      return { ok: false, error: `La Caja ${caja} se acaba de liberar. Intenta de nuevo en ${seg}s.` };
+    }
+    if (vivo) {                       // mismo equipo en otra pestaña/conexión → desplaza la vieja
+      io.sockets.sockets.get(occ.socketId)?.emit('caja_desplazada', {
+        caja, motivo: 'Esta caja se abrió en otra ventana del mismo equipo.'
+      });
+      delete presencia[occ.socketId];
+    }
+  }
+  ocupacion[caja] = { clientId, socketId: socket.id, liberadaEn: null };
+  return { ok: true };
+}
+
+function liberarSocket(socketId) {
+  for (const [caja, occ] of Object.entries(ocupacion)) {
+    if (occ.socketId === socketId) occ.liberadaEn = Date.now();
+  }
+}
+
+// Admin: libera una caja a la fuerza (equipo trabado, cajera se fue, etc.)
+app.post('/api/caja/:id/liberar', auth.requireAdmin, (req, res) => {
+  const caja = parseInt(req.params.id);
+  if (![1,2,3,4].includes(caja)) return res.status(400).json({ ok: false, error: 'Caja inválida' });
+  const occ = ocupacion[caja];
+  if (occ) {
+    io.sockets.sockets.get(occ.socketId)?.emit('caja_desplazada', {
+      caja, motivo: 'El administrador liberó esta caja.'
+    });
+    delete presencia[occ.socketId];
+    delete ocupacion[caja];
+    emitirPresencia();
+  }
+  res.json({ ok: true, estabaOcupada: !!occ });
+});
+
+// ── Socket.IO ─────────────────────────────────────────────────────────────────
+
 io.on('connection', (socket) => {
   console.log(`[+] ${socket.id}`);
+  let ultimoLlamado = 0;
 
-  // El cliente se identifica inmediatamente
-  socket.on('identificar', ({ tipo, caja }) => {
-    // Solo una sesión de administrador válida puede identificarse como admin
-    if (tipo === 'admin' && !auth.adminDeCookie(socket.handshake.headers.cookie)) return;
-    presencia[socket.id] = { tipo, caja: caja || null, lastHB: Date.now() };
-    emitirPresencia();
+  // El cliente se identifica. Todo payload se valida: nada de lo que llegue puede tumbar el servidor.
+  socket.on('identificar', (datos, cb) => {
+    const responder = typeof cb === 'function' ? cb : () => {};
+    try {
+      const tipo     = datos?.tipo;
+      const caja     = parseInt(datos?.caja);
+      const clientId = typeof datos?.clientId === 'string' ? datos.clientId.slice(0, 64) : '';
+
+      if (!['caja', 'pantalla', 'admin'].includes(tipo)) return responder({ ok: false, error: 'Tipo inválido' });
+      if (tipo === 'admin' && !auth.adminDeCookie(socket.handshake.headers.cookie)) {
+        return responder({ ok: false, error: 'Sesión de administrador requerida' });
+      }
+      liberarSocket(socket.id); // si antes tenía otra caja, la suelta
+
+      if (tipo === 'caja') {
+        if (![1,2,3,4].includes(caja)) return responder({ ok: false, error: 'Caja inválida' });
+        if (!clientId) return responder({ ok: false, error: 'Falta identificador del equipo' });
+        const r = intentarOcupar(socket, caja, clientId);
+        if (!r.ok) return responder(r);
+      }
+      presencia[socket.id] = { tipo, caja: tipo === 'caja' ? caja : null, lastHB: Date.now() };
+      emitirPresencia();
+      responder({ ok: true });
+    } catch (err) {
+      console.error('Error en identificar:', err.message);
+      responder({ ok: false, error: 'Error interno' });
+    }
   });
 
   // Heartbeat: el cliente manda ping cada ~10 s
   socket.on('heartbeat', () => {
-    if (presencia[socket.id]) {
-      presencia[socket.id].lastHB = Date.now();
-    }
+    if (presencia[socket.id]) presencia[socket.id].lastHB = Date.now();
   });
 
   // Enviar estado inicial
@@ -166,29 +245,39 @@ io.on('connection', (socket) => {
   });
 
   socket.on('llamar_turno', (payload, callback) => {
-    const caja = parseInt(payload?.caja);
-    if (![1,2,3,4].includes(caja)) {
-      return callback?.({ ok: false, error: 'Caja inválida' });
-    }
+    const responder = typeof callback === 'function' ? callback : () => {};
     try {
+      const caja = parseInt(payload?.caja);
+      if (![1,2,3,4].includes(caja)) return responder({ ok: false, error: 'Caja inválida' });
+
+      // Solo el equipo que ocupa la caja puede llamar turnos desde ella
+      const occ = ocupacion[caja];
+      if (!occ || occ.socketId !== socket.id) {
+        return responder({ ok: false, error: `Este equipo no tiene asignada la Caja ${caja}.` });
+      }
+      // Anti-rebote en el servidor (además del cliente)
+      const ahora = Date.now();
+      if (ahora - ultimoLlamado < 400) return responder({ ok: false, error: 'Espera un momento antes de llamar otro turno.' });
+      ultimoLlamado = ahora;
+
       const resultado = asignarTurno(caja);
       const estado    = getEstado();
       io.emit('nuevo_turno', { ...resultado, estado });
-      callback?.({ ok: true, ...resultado });
+      responder({ ok: true, ...resultado });
       console.log(`Turno ${resultado.turno} → Caja ${caja}`);
     } catch (err) {
       console.error('Error al asignar turno:', err.message);
-      callback?.({ ok: false, error: err.message });
+      responder({ ok: false, error: err.message });
     }
   });
 
   socket.on('disconnect', () => {
+    liberarSocket(socket.id);
     delete presencia[socket.id];
     emitirPresencia();
     console.log(`[-] ${socket.id}`);
   });
 });
-
 function emitirPresencia() {
   io.emit('presencia_actualizada', calcularPresencia());
 }
@@ -205,4 +294,5 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`   Pantalla pública:  ${esq}://localhost:${PORT}/display`);
   console.log(`   Panel admin:       ${esq}://localhost:${PORT}/admin\n`);
 });
+
 

@@ -349,6 +349,7 @@ function activarPantalla() {
   // Crear AudioContext tras interacción del usuario
   audioCtx  = new (window.AudioContext || window.webkitAudioContext)();
   audioReady = true;
+  if ('speechSynthesis' in window) { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); }
 
   iniciarSocket();
   iniciarReloj();
@@ -369,12 +370,58 @@ function iniciarReloj() {
 
 // ── Formato turno ──────────────────────────────────────────────────────────
 function fmt(n) {
-  if (n == null) return '---';
+  if (n == null || n === '') return '---';
   const num = parseInt(n, 10);
-  if (num < 1000) return String(num).padStart(3, '0');
-  return String(num);
+  if (!Number.isFinite(num) || num < 0) return '---';
+  const letra = String.fromCharCode(65 + (Math.floor(num / 100) % 26));
+  return letra + String(num % 100).padStart(2, '0');
 }
 
+// ── Voz de llamado (SpeechSynthesis, español) ──────────────────────────────
+const NOMBRE_LETRA = { A:'a',B:'be',C:'ce',D:'de',E:'e',F:'efe',G:'ge',H:'hache',I:'i',J:'jota',K:'ka',L:'ele',M:'eme',N:'ene',O:'o',P:'pe',Q:'cu',R:'erre',S:'ese',T:'te',U:'u',V:'uve',W:'uve doble',X:'equis',Y:'ye',Z:'zeta' };
+const UNIDADES  = ['cero','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve'];
+const ESPECIALES= ['diez','once','doce','trece','catorce','quince','dieciséis','diecisiete','dieciocho','diecinueve'];
+const VEINTES   = ['veinte','veintiuno','veintidós','veintitrés','veinticuatro','veinticinco','veintiséis','veintisiete','veintiocho','veintinueve'];
+const DECENAS   = ['','','','treinta','cuarenta','cincuenta','sesenta','setenta','ochenta','noventa'];
+function numeroEnPalabras(n) {
+  if (n < 10) return 'cero ' + UNIDADES[n];
+  if (n < 20) return ESPECIALES[n - 10];
+  if (n < 30) return VEINTES[n - 20];
+  const d = Math.floor(n / 10), u = n % 10;
+  return u === 0 ? DECENAS[d] : DECENAS[d] + ' y ' + UNIDADES[u];
+}
+function textoVoz(turno, caja) {
+  const num = parseInt(turno, 10);
+  const letra = String.fromCharCode(65 + (Math.floor(num / 100) % 26));
+  const resto = num % 100;
+  const numTxt = resto === 0 ? 'cero cero' : numeroEnPalabras(resto);
+  return 'Turno ' + NOMBRE_LETRA[letra] + ', ' + numTxt + '. Diríjase a la caja número ' + caja + '.';
+}
+let vozES = null;
+function elegirVoz() {
+  if (!('speechSynthesis' in window)) return null;
+  const v = speechSynthesis.getVoices().filter(x => (x.lang || '').toLowerCase().startsWith('es'));
+  for (const p of ['es-co','es-mx','es-us','es-es']) {
+    const f = v.find(x => x.lang.toLowerCase().replace('_','-') === p);
+    if (f) return f;
+  }
+  return v[0] || null;
+}
+if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => { vozES = elegirVoz(); };
+function hablarTurno(turno, caja) {
+  if (!('speechSynthesis' in window)) return false;
+  vozES = vozES || elegirVoz();
+  if (!vozES) return false;
+  if (speechSynthesis.paused) speechSynthesis.resume();
+  for (let i = 0; i < 2; i++) {
+    const u = new SpeechSynthesisUtterance(textoVoz(turno, caja));
+    u.voice = vozES; u.lang = vozES.lang;
+    u.volume = Math.max(0.2, Math.min(1, cfgVolumen));
+    u.rate = 0.9;
+    speechSynthesis.speak(u);
+  }
+  return true;
+}
 // ── Sonido con Web Audio API ───────────────────────────────────────────────
 // Campanilla fuerte: 3 notas x2, onda triangular, ganancia amplificada + compresor
 function playDing() {
@@ -441,8 +488,8 @@ function actualizarPantalla(estado) {
       const cajaColores = { 1: '#A8D5E2', 2: '#B5EAD7', 3: '#C9C0E8', 4: '#FFDAB9' };
       tpCaja.style.background = cajaColores[actual.caja] || '#A8D5E2';
 
-      // Sonido
-      playDing();
+      // Voz (con campanilla de respaldo)
+      if (!cfgSilencio && !hablarTurno(actual.turno, actual.caja)) playDing();
     }
   } else {
     tpNum.textContent = '---';
@@ -512,5 +559,6 @@ function iniciarSocket() {
 </script>
 </body>
 </html>
+
 
 

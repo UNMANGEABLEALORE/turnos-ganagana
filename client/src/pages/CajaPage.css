@@ -209,3 +209,20 @@ kbd {
   color: var(--text-soft);
   text-align: center;
 }
+
+/* ── Caja en uso por otro equipo ─────────────────────────────── */
+.caja-bloqueo {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(26,56,45,0.88); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  animation: flash-in .3s ease both;
+}
+.caja-bloqueo-box {
+  background: #fff; border-radius: 22px; padding: 36px 40px; max-width: 460px; width: 100%;
+  text-align: center; border-top: 6px solid #F8E704; box-shadow: 0 20px 80px rgba(0,0,0,.45);
+}
+.caja-bloqueo-icono { font-size: 3rem; margin-bottom: 8px; }
+.caja-bloqueo-box h2 { color: #016630; margin-bottom: 10px; }
+.caja-bloqueo-box p { color: #333; line-height: 1.5; margin-bottom: 8px; }
+.caja-bloqueo-sub { font-size: .85rem; color: #777 !important; }
+.caja-bloqueo-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
