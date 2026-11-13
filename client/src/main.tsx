@@ -1,12 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import SelectorPage from './pages/SelectorPage';
-import CajaPage     from './pages/CajaPage';
-import AdminPage    from './pages/AdminPage';
-import DisplayPage  from './pages/DisplayPage';
-import CookieBanner from './components/CookieBanner';
-import './styles/global.css';
+import SelectorPage from './views/pages/SelectorPage';
+import CajaPage     from './views/pages/CajaPage';
+import AdminPage    from './views/pages/AdminPage';
+import DisplayPage  from './views/pages/DisplayPage';
+import CookieBanner from './views/components/CookieBanner';
+import './views/styles/global.css';
 
 // ── Título dinámico por ruta ──────────────────────────────────────────────────
 const TITULOS: Record<string, string> = {

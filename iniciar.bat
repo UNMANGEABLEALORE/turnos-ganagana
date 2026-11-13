@@ -6,70 +6,47 @@ echo  ============================================
 echo   SISTEMA DE TURNOS - GANAGANA
 echo  ============================================
 echo.
-
-:: Verificar Node.js
 where node >nul 2>&1
 if %errorlevel% neq 0 (
-  echo  [ERROR] Node.js no esta instalado.
-  echo  Descargalo en: https://nodejs.org
+  echo  [ERROR] Node.js no esta instalado. Descargalo en: https://nodejs.org
   pause
   exit /b 1
 )
 
-echo  [1/3] Instalando dependencias del servidor...
+echo  [1/3] Servidor: dependencias...
 cd /d "%~dp0server"
 if not exist node_modules (
   call npm install
-  if %errorlevel% neq 0 (
-    echo  [ERROR] Fallo al instalar dependencias del servidor.
-    pause
-    exit /b 1
-  )
+  if %errorlevel% neq 0 ( echo  [ERROR] Fallo al instalar el servidor. & pause & exit /b 1 )
 )
 
-echo.
-echo  [2/3] Instalando dependencias del cliente...
+echo  [2/3] Cliente: compilando la interfaz...
 cd /d "%~dp0client"
 if not exist node_modules (
   call npm install
-  if %errorlevel% neq 0 (
-    echo  [ERROR] Fallo al instalar dependencias del cliente.
-    pause
-    exit /b 1
-  )
+  if %errorlevel% neq 0 ( echo  [ERROR] Fallo al instalar el cliente. & pause & exit /b 1 )
+)
+if not exist dist\index.html (
+  call npm run build
+  if %errorlevel% neq 0 ( echo  [ERROR] Fallo al compilar el cliente. & pause & exit /b 1 )
 )
 
-echo.
-echo  [3/3] Iniciando servidor en segundo plano...
+echo  [3/3] Iniciando el servidor...
 cd /d "%~dp0server"
 start "Servidor Turnos" cmd /k "node index.js"
-
-timeout /t 2 /nobreak >nul
-
-echo.
-echo  [4/4] Iniciando cliente (panel de cajas)...
-cd /d "%~dp0client"
-start "Cliente Turnos" cmd /k "npm run dev"
-
 timeout /t 3 /nobreak >nul
 
 echo.
 echo  ============================================
-echo   SISTEMA INICIADO
+echo   SISTEMA INICIADO  (todo en el puerto 3001)
 echo  ============================================
+echo   Inicio:            http://localhost:3001
+echo   Panel admin:       http://localhost:3001/admin
+echo   Pantalla publica:  http://localhost:3001/pantalla
+echo   Caja 1 a 4:        http://localhost:3001/caja/1  ...  /caja/4
 echo.
-echo  Panel de cajas:    http://localhost:5173
-echo  Pantalla publica:  http://localhost:3001/display
-echo  Panel admin:       http://localhost:5173/admin
+echo   Desde otros equipos: cambia "localhost" por la IP de este computador.
+echo   Si cambiaste el codigo del cliente, borra client\dist y vuelve a ejecutar.
 echo.
-echo  Para usar desde otros computadores de la red,
-echo  reemplaza "localhost" con la IP de este equipo.
-echo.
-echo  Presiona cualquier tecla para abrir el navegador...
-pause >nul
-
-start "" "http://localhost:5173"
-
-echo.
-echo  Cierra esta ventana cuando quieras detener el sistema.
+start "" "http://localhost:3001"
 pause

@@ -9,7 +9,6 @@ Sistema de turnos con 4 cajas, pantalla pública con voz y panel de administraci
 | Inicio | http://localhost:3001 | https://turnos-ganagana.onrender.com |
 | Administración | http://localhost:3001/admin | https://turnos-ganagana.onrender.com/admin |
 | Pantalla pública | http://localhost:3001/pantalla | https://turnos-ganagana.onrender.com/pantalla |
-| Pantalla pública (HTML) | http://localhost:3001/display | https://turnos-ganagana.onrender.com/display |
 | Caja 1 · 2 · 3 · 4 | http://localhost:3001/caja/1 … /caja/4 | https://turnos-ganagana.onrender.com/caja/1 … /caja/4 |
 
 Desde otro equipo de la misma red, cambia `localhost` por la IP del computador que tiene el servidor.
@@ -53,10 +52,10 @@ Son 2 600 turnos por ciclo. El botón rojo del admin reinicia a `A00`.
    - **Administradores**: el principal crea o elimina administradores (solo nombres reales).
 
 ## 7. Dónde y cómo se guardan los datos
-No se usa una base de datos como MySQL: se usa **un archivo JSON** (`server/store.json`).
+No se usa una base de datos como MySQL: se usa **un archivo JSON** (`server/data/store.json`).
 
 ```
-store.json
+server/data/store.json
 ├─ config      → contador, nombre del establecimiento, volumen, estado de cada caja
 ├─ historial   → cada turno llamado: id, número, caja y hora
 └─ admins      → administradores (la contraseña va CIFRADA con scrypt, nunca en texto)
@@ -67,7 +66,7 @@ store.json
 **Limitaciones (importante):**
 - En el plan gratuito de Render el disco se borra en cada reinicio o despliegue: allí se pierden turnos y administradores creados desde el panel.
   Para producción real conviene un disco persistente o una base de datos (PostgreSQL); el acceso a datos está aislado en `server/db.js`, así que cambiarlo no afecta al resto.
-- Respalda `server/store.json` si necesitas conservar el historial.
+- Respalda `server/data/store.json` si necesitas conservar el historial.
 
 ## 8. Credenciales (nada en el código)
 Todo lo secreto está en la carpeta **`credenciales/`**, que Git ignora:
@@ -80,7 +79,7 @@ Todo lo secreto está en la carpeta **`credenciales/`**, que Git ignora:
 | `credenciales/ejemplo.*` | Plantillas sin datos reales (sí se suben) |
 
 - Si `administradores.json` no existe, al primer arranque se crea el principal con una **contraseña aleatoria** y se guarda ahí.
-- Las contraseñas del archivo son solo la fuente inicial; en `store.json` quedan cifradas. Cambia la tuya en **Mi cuenta**.
+- Las contraseñas del archivo son solo la fuente inicial; en `server/data/store.json` quedan cifradas. Cambia la tuya en **Mi cuenta**.
 - En Render no hay carpeta: las mismas claves se escriben en **Environment** (`ADMIN_PRINCIPAL_PASSWORD`, `HCAPTCHA_*`, `GOOGLE_*`, `GITHUB_*`, `PUBLIC_URL`).
 - Detalles en `credenciales/LEEME.md`.
 
@@ -104,10 +103,10 @@ Cada dato se valida **dos veces**: en el navegador (para avisar rápido, `client
 - **No suena la voz:** haz clic en "Activar pantalla", sube el volumen del equipo y prueba **🔊 Probar voz**. Si suena rara, elige otra voz en el selector o usa Microsoft Edge.
 - **"Caja X no disponible":** la usa otra persona. Pide al administrador **Liberar caja** o espera ~15 s.
 - **La pantalla se ve pequeña:** recarga con **Ctrl + F5**.
-- **No entro al admin:** revisa `credenciales/administradores.json`. Si lo borraste: elimina `"admins"` de `server/store.json` y reinicia.
+- **No entro al admin:** revisa `credenciales/administradores.json`. Si lo borraste: elimina `"admins"` de `server/data/store.json` y reinicia.
 - **Render tarda en abrir:** el plan gratuito se "duerme"; la primera visita puede tardar ~1 minuto.
 
 ## 11. Para quien mantiene el sistema
-- **Frontend:** React 18 + **TypeScript** + Vite (`client/src`, archivos `.ts` y `.tsx`). `npm run build --prefix client` revisa los tipos y compila.
-- **Servidor:** Node.js + Express + Socket.IO (`server/`).
-- **Pruebas automáticas:** `node server/pruebas.js` (80 comprobaciones: formato de turnos, voz, validaciones, credenciales, exclusividad de caja, datos inválidos). Usan puerto y archivos temporales; no tocan tus datos.
+- **Frontend:** React 18 + **TypeScript** + Vite, organizado en `client/src/models`, `controllers` y `views`. `npm run build --prefix client` revisa los tipos y compila.
+- **Servidor:** Node.js + Express + Socket.IO con arquitectura MVC (`server/models`, `controllers`, `routes`, `middlewares`, `services`). Ver README.md.
+- **Pruebas automáticas:** `npm test` o `node server/tests/pruebas.js` (91 comprobaciones: formato de turnos, voz, validaciones, credenciales, exclusividad de caja, datos inválidos). Usan puerto y archivos temporales; no tocan tus datos.

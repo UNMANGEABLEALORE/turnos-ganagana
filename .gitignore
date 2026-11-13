@@ -1,7 +1,7 @@
 node_modules/
 client/node_modules/
 server/node_modules/
-server/store.json
+server/data/
 .env
 server/certs/
 .env.local
