@@ -1,7 +1,10 @@
-const express    = require('express');
+﻿const express    = require('express');
 const http       = require('http');
 const { Server } = require('socket.io');
-const cors       = require('cors');
+const fs         = require('fs');
+const https      = require('https');
+const sec        = require('./security');
+const auth       = require('./auth');
 const path       = require('path');
 
 const {
@@ -12,13 +15,22 @@ const {
 } = require('./db');
 
 const app    = express();
-const server = http.createServer(app);
+// HTTPS directo si hay certificados (server/certs/key.pem y cert.pem); si no, HTTP (Render ya da HTTPS)
+const CERT_KEY  = process.env.SSL_KEY  || path.join(__dirname, 'certs', 'key.pem');
+const CERT_CRT  = process.env.SSL_CERT || path.join(__dirname, 'certs', 'cert.pem');
+const usaHttps  = fs.existsSync(CERT_KEY) && fs.existsSync(CERT_CRT);
+const server = usaHttps
+  ? https.createServer({ key: fs.readFileSync(CERT_KEY), cert: fs.readFileSync(CERT_CRT) }, app)
+  : http.createServer(app);
 const io     = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] }
+  cors: process.env.CORS_ORIGIN ? { origin: process.env.CORS_ORIGIN.split(','), credentials: true } : false
 });
 
-app.use(cors());
-app.use(express.json());
+app.set('trust proxy', 1);
+app.use(sec.forzarHttps);
+app.use(sec.cabeceras);
+app.use(express.json({ limit: '50kb' }));
+app.use('/api/auth', auth.router);
 app.use('/display', express.static(path.join(__dirname, '..', 'display')));
 
 // En producción (Railway): servir el cliente React compilado
@@ -74,7 +86,7 @@ function calcularPresencia() {
 
 app.get('/api/estado', (_req, res) => res.json(getEstado()));
 
-app.get('/api/presencia', (_req, res) => res.json(calcularPresencia()));
+app.get('/api/presencia', auth.requireAdmin, (_req, res) => res.json(calcularPresencia()));
 
 app.get('/api/config', (_req, res) => res.json({
   establecimiento: getConfig('establecimiento'),
@@ -82,7 +94,7 @@ app.get('/api/config', (_req, res) => res.json({
   silencio:        getConfig('silencio') === true || getConfig('silencio') === 'true'
 }));
 
-app.post('/api/config', (req, res) => {
+app.post('/api/config', auth.requireAdmin, (req, res) => {
   const { establecimiento, volumen, silencio } = req.body;
   if (establecimiento !== undefined) setConfig('establecimiento', establecimiento);
   if (volumen         !== undefined) setConfig('volumen', volumen);
@@ -97,12 +109,12 @@ app.post('/api/config', (req, res) => {
   res.json({ ok: true, config: cfg });
 });
 
-app.get('/api/historial', (req, res) => {
+app.get('/api/historial', auth.requireAdmin, (req, res) => {
   const limit = parseInt(req.query.limit) || 100;
   res.json(getHistorial(limit));
 });
 
-app.post('/api/reset', (_req, res) => {
+app.post('/api/reset', auth.requireAdmin, (_req, res) => {
   resetContador();
   const estado = getEstado();
   io.emit('estado_actualizado', estado);
@@ -110,7 +122,7 @@ app.post('/api/reset', (_req, res) => {
 });
 
 // Activar / desactivar caja
-app.post('/api/caja/:id/estado', (req, res) => {
+app.post('/api/caja/:id/estado', auth.requireAdmin, (req, res) => {
   const caja   = parseInt(req.params.id);
   const estado = req.body.estado; // 'activa' | 'inactiva'
   if (![1,2,3,4].includes(caja) || !['activa','inactiva'].includes(estado)) {
@@ -132,6 +144,8 @@ io.on('connection', (socket) => {
 
   // El cliente se identifica inmediatamente
   socket.on('identificar', ({ tipo, caja }) => {
+    // Solo una sesión de administrador válida puede identificarse como admin
+    if (tipo === 'admin' && !auth.adminDeCookie(socket.handshake.headers.cookie)) return;
     presencia[socket.id] = { tipo, caja: caja || null, lastHB: Date.now() };
     emitirPresencia();
   });
@@ -186,7 +200,9 @@ setInterval(() => { emitirPresencia(); }, 12000);
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n✅ Servidor corriendo en http://0.0.0.0:${PORT}`);
-  console.log(`   Pantalla pública:  http://localhost:${PORT}/display`);
-  console.log(`   API:               http://localhost:${PORT}/api/estado\n`);
+  const esq = usaHttps ? 'https' : 'http';
+  console.log(`\n✅ Servidor corriendo en ${esq}://0.0.0.0:${PORT}`);
+  console.log(`   Pantalla pública:  ${esq}://localhost:${PORT}/display`);
+  console.log(`   Panel admin:       ${esq}://localhost:${PORT}/admin\n`);
 });
+

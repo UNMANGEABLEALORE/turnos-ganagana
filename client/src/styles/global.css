@@ -1,17 +1,30 @@
-/* ── Paleta Pastel Breeze ───────────────────────────────────────────────── */
+﻿/* ── Paleta GanaGana Oficial + Pastel Breeze ────────────────────────────── */
 :root {
-  --sky:       #A8D5E2;   /* azul cielo suave */
+  /* GanaGana corporativo */
+  --gg-red:        #016630;   /* verde oficial GanaGana (nombre histórico) */
+  --gg-red-dark:   #014d24;
+  --gg-red-light:  #2A5747;
+  --gg-yellow:     #F8E704;   /* amarillo oficial */
+  --gg-yellow-dark:#d9c800;
+  --gg-yellow-light:#FFF04D;
+  --gg-dark:       #1A382D;   /* verde oscuro oficial */
+  --gg-white:      #FFFFFF;
+
+  /* Pastel Breeze — cajas */
+  --sky:       #A8D5E2;
   --sky-dark:  #7BBDD0;
-  --mint:      #B5EAD7;   /* verde menta */
+  --mint:      #B5EAD7;
   --mint-dark: #82CFAF;
-  --lavender:  #C9C0E8;   /* lavanda */
+  --lavender:  #C9C0E8;
   --lavender-dark: #A898D8;
-  --rose:      #FFB7C3;   /* rosa pastel */
+  --rose:      #FFB7C3;
   --rose-dark: #FF8FA3;
-  --peach:     #FFDAB9;   /* durazno */
+  --peach:     #FFDAB9;
   --peach-dark:#FFBA80;
-  --warm-white:#FFF8F0;   /* blanco cálido */
-  --text-main: #3A3A4A;
+  --warm-white:#F7FAEA;
+
+  /* Texto */
+  --text-main: #1A382D;
   --text-soft: #6B6B7E;
   --text-light:#9999AA;
   --shadow:    rgba(100,100,130,0.12);
@@ -125,3 +138,4 @@ h3 { font-size: 1.1rem; font-weight: 600; }
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #f0f0f8; }
 ::-webkit-scrollbar-thumb { background: var(--sky); border-radius: 3px; }
+

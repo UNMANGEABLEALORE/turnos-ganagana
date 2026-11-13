@@ -8,4 +8,23 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      # Completar en el panel de Render (sync: false = no se guarda en el repo)
+      - key: PUBLIC_URL
+        sync: false
+      - key: HCAPTCHA_SITEKEY
+        sync: false
+      - key: HCAPTCHA_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: ADMIN_PRINCIPAL_PASSWORD
+        sync: false
     healthCheckPath: /api/estado

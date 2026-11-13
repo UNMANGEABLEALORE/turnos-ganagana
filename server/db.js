@@ -15,7 +15,7 @@ function valorInicial() {
     config: {
       contador:        0,
       establecimiento: 'GanaGana',
-      volumen:         0.5,
+      volumen:         1,
       silencio:        false,
       // Estado de cada caja: 'activa' | 'inactiva'
       cajas_estado: { 1: 'activa', 2: 'activa', 3: 'activa', 4: 'activa' }
@@ -122,7 +122,20 @@ function getEstado() {
   };
 }
 
+// ── Administradores y secreto de sesión ─────────────────────────────────────
+function getAdmins() { return store.admins || null; }
+function setAdmins(lista) { store.admins = lista; guardarStore(store); }
+function getSessionSecret() {
+  if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
+  if (!store.sessionSecret) {
+    store.sessionSecret = require('crypto').randomBytes(48).toString('hex');
+    guardarStore(store);
+  }
+  return store.sessionSecret;
+}
+
 module.exports = {
+  getAdmins, setAdmins, getSessionSecret,
   getConfig, setConfig,
   getCajasEstado, setCajaEstado,
   asignarTurno, getHistorial,

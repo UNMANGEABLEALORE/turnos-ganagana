@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import { useSocket } from '../hooks/useSocket';
 import { formatTurno } from '../utils/formato';
 import './DisplayPage.css';
@@ -17,7 +17,7 @@ export default function DisplayPage() {
   const audioCtx   = useRef(null);
   const [activado, setActivado] = useState(false);
   const [silencio, setSilencio] = useState(false);
-  const volumenRef = useRef(0.5);
+  const volumenRef = useRef(1);
 
   // Animación
   const [animKey, setAnimKey] = useState(0);
@@ -47,7 +47,7 @@ export default function DisplayPage() {
   // Sincronizar config de audio
   useEffect(() => {
     if (!config) return;
-    volumenRef.current = config.volumen ?? 0.5;
+    volumenRef.current = config.volumen ?? 1;
     setSilencio(config.silencio ?? false);
   }, [config]);
 
@@ -67,29 +67,38 @@ export default function DisplayPage() {
     setActivado(true);
   }
 
+  // Campanilla fuerte: 3 notas repetidas 2 veces, onda triangular (más presencia que
+  // la senoidal), ganancia amplificada y compresor para subir volumen sin distorsionar.
   function playDing() {
     if (!audioCtx.current || silencio) return;
     const vol = Math.max(0, Math.min(1, volumenRef.current));
     const ctx = audioCtx.current;
-    const now = ctx.currentTime;
+    if (ctx.state === 'suspended') ctx.resume();
+    const t0 = ctx.currentTime;
 
-    const g1 = ctx.createGain();
-    g1.gain.setValueAtTime(0, now);
-    g1.gain.linearRampToValueAtTime(vol * 0.4, now + 0.01);
-    g1.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
-    g1.connect(ctx.destination);
-    const o1 = ctx.createOscillator();
-    o1.type = 'sine'; o1.frequency.value = 880;
-    o1.connect(g1); o1.start(now); o1.stop(now + 0.45);
+    const master = ctx.createGain();
+    master.gain.value = vol * 3.2;               // hasta 3.2× al 100 %
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -18; comp.knee.value = 12; comp.ratio.value = 6;
+    comp.attack.value = 0.003;  comp.release.value = 0.2;
+    master.connect(comp); comp.connect(ctx.destination);
 
-    const g2 = ctx.createGain();
-    g2.gain.setValueAtTime(0, now + 0.25);
-    g2.gain.linearRampToValueAtTime(vol * 0.35, now + 0.28);
-    g2.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
-    g2.connect(ctx.destination);
-    const o2 = ctx.createOscillator();
-    o2.type = 'sine'; o2.frequency.value = 1100;
-    o2.connect(g2); o2.start(now + 0.25); o2.stop(now + 1.0);
+    const notas = [880, 1100, 1320];
+    [0, 1.1].forEach(repeticion => {
+      notas.forEach((freq, i) => {
+        const ini = t0 + repeticion + i * 0.22;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, ini);
+        g.gain.exponentialRampToValueAtTime(0.9, ini + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.001, ini + 0.7);
+        g.connect(master);
+        [['triangle', freq], ['sine', freq * 2]].forEach(([tipo, f]) => {
+          const o = ctx.createOscillator();
+          o.type = tipo; o.frequency.value = f;
+          o.connect(g); o.start(ini); o.stop(ini + 0.75);
+        });
+      });
+    });
   }
 
   if (!activado) {
@@ -187,3 +196,4 @@ export default function DisplayPage() {
     </div>
   );
 }
+

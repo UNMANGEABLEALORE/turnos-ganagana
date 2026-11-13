@@ -3,5 +3,6 @@ client/node_modules/
 server/node_modules/
 server/store.json
 .env
+server/certs/
 .env.local
 *.log

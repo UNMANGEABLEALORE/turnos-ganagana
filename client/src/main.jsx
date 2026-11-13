@@ -1,26 +1,46 @@
-import React from 'react';
+﻿import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import SelectorPage from './pages/SelectorPage';
 import CajaPage     from './pages/CajaPage';
 import AdminPage    from './pages/AdminPage';
 import DisplayPage  from './pages/DisplayPage';
+import CookieBanner from './components/CookieBanner';
 import './styles/global.css';
+
+// ── Título dinámico por ruta ──────────────────────────────────────────────────
+const TITULOS = {
+  '/':          'Inicio · Selector de módulo | GanaGana',
+  '/caja/1':    'Caja 1 · Atención al cliente | GanaGana',
+  '/caja/2':    'Caja 2 · Atención al cliente | GanaGana',
+  '/caja/3':    'Caja 3 · Atención al cliente | GanaGana',
+  '/caja/4':    'Caja 4 · Atención al cliente | GanaGana',
+  '/pantalla':  'Pantalla de Turnos · Sala de Espera | GanaGana',
+  '/admin':     'Acceso Administradores | GanaGana',
+};
+
+function TituloSincronizado() {
+  const loc = useLocation();
+  React.useEffect(() => {
+    const titulo = TITULOS[loc.pathname] || 'Sistema de Turnos | GanaGana';
+    document.title = titulo;
+  }, [loc.pathname]);
+  return null;
+}
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
+      <TituloSincronizado />
       <Routes>
-        {/* Selector de caja (pantalla de inicio para asesoras) */}
         <Route path="/"          element={<SelectorPage />} />
-        {/* Pantallas de caja 1-4 */}
         <Route path="/caja/:id"  element={<CajaPage />} />
-        {/* Pantalla pública para la sala de espera / TV */}
         <Route path="/pantalla"  element={<DisplayPage />} />
-        {/* Panel del administrador (protegido con contraseña) */}
         <Route path="/admin"     element={<AdminPage />} />
         <Route path="*"          element={<Navigate to="/" replace />} />
       </Routes>
+      <CookieBanner />
     </BrowserRouter>
   </React.StrictMode>
 );
+

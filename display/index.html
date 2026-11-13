@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pantalla de Turnos</title>
+  <title>Pantalla de Turnos (HTML) · Sala de Espera | GanaGana</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
@@ -337,7 +337,7 @@
 
 <script>
 // ── Configuración ──────────────────────────────────────────────────────────
-let cfgVolumen  = 0.5;
+let cfgVolumen  = 1;
 let cfgSilencio = false;
 let audioCtx    = null;
 let audioReady  = false;
@@ -376,40 +376,36 @@ function fmt(n) {
 }
 
 // ── Sonido con Web Audio API ───────────────────────────────────────────────
-// Ding de dos tonos suave (Do → Mi)
+// Campanilla fuerte: 3 notas x2, onda triangular, ganancia amplificada + compresor
 function playDing() {
   if (!audioReady || cfgSilencio || !audioCtx) return;
   const vol = Math.max(0, Math.min(1, cfgVolumen));
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const t0 = audioCtx.currentTime;
 
-  const gain = audioCtx.createGain();
-  gain.gain.setValueAtTime(0, audioCtx.currentTime);
-  gain.gain.linearRampToValueAtTime(vol * 0.4, audioCtx.currentTime + 0.01);
-  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.9);
-  gain.connect(audioCtx.destination);
+  const master = audioCtx.createGain();
+  master.gain.value = vol * 3.2;
+  const comp = audioCtx.createDynamicsCompressor();
+  comp.threshold.value = -18; comp.knee.value = 12; comp.ratio.value = 6;
+  comp.attack.value = 0.003;  comp.release.value = 0.2;
+  master.connect(comp); comp.connect(audioCtx.destination);
 
-  // Primer tono
-  const osc1 = audioCtx.createOscillator();
-  osc1.type = 'sine';
-  osc1.frequency.setValueAtTime(880, audioCtx.currentTime);
-  osc1.connect(gain);
-  osc1.start(audioCtx.currentTime);
-  osc1.stop(audioCtx.currentTime + 0.45);
-
-  // Segundo tono (ligeramente después)
-  const gain2 = audioCtx.createGain();
-  gain2.gain.setValueAtTime(0, audioCtx.currentTime + 0.25);
-  gain2.gain.linearRampToValueAtTime(vol * 0.35, audioCtx.currentTime + 0.28);
-  gain2.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.0);
-  gain2.connect(audioCtx.destination);
-
-  const osc2 = audioCtx.createOscillator();
-  osc2.type = 'sine';
-  osc2.frequency.setValueAtTime(1100, audioCtx.currentTime + 0.25);
-  osc2.connect(gain2);
-  osc2.start(audioCtx.currentTime + 0.25);
-  osc2.stop(audioCtx.currentTime + 1.0);
+  [0, 1.1].forEach(rep => {
+    [880, 1100, 1320].forEach((freq, i) => {
+      const ini = t0 + rep + i * 0.22;
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(0.0001, ini);
+      g.gain.exponentialRampToValueAtTime(0.9, ini + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.001, ini + 0.7);
+      g.connect(master);
+      [['triangle', freq], ['sine', freq * 2]].forEach(([tipo, f]) => {
+        const o = audioCtx.createOscillator();
+        o.type = tipo; o.frequency.value = f;
+        o.connect(g); o.start(ini); o.stop(ini + 0.75);
+      });
+    });
+  });
 }
-
 // ── Actualizar pantalla ────────────────────────────────────────────────────
 let ultimoTurnoMostrado = null;
 
@@ -516,3 +512,5 @@ function iniciarSocket() {
 </script>
 </body>
 </html>
+
+
