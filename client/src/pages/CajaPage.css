@@ -226,3 +226,7 @@ kbd {
 .caja-bloqueo-box p { color: #333; line-height: 1.5; margin-bottom: 8px; }
 .caja-bloqueo-sub { font-size: .85rem; color: #777 !important; }
 .caja-bloqueo-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+
+/* Auto-ajuste: el turno de la caja se ve grande en cualquier pantalla */
+.turno-numero { font-size: clamp(5rem, min(20vw, 30vh), 16rem); line-height: 1; letter-spacing: -0.02em; }
+.turno-card { padding: clamp(24px, 4vh, 56px) clamp(24px, 5vw, 80px); }

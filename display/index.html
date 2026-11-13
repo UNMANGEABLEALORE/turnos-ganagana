@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
@@ -276,6 +276,39 @@
       color: #ccc;
       letter-spacing: 0;
     }
+    /* ══ AUTO-AJUSTE: llena cualquier dispositivo sin zoom manual ══ */
+    .screen { height: 100vh; height: 100dvh; }
+    .header { padding: 1.6vh 3vw; }
+    .header-title { font-size: clamp(1.3rem, 2.8vw, 3.4rem); }
+    .clock { font-size: clamp(1.1rem, 2.4vw, 3rem); }
+    .conn-badge { font-size: clamp(.75rem, 1.2vw, 1.4rem); }
+    .main-area { min-height: 0; gap: 3vw; padding: 3vh 3vw; align-items: stretch; }
+    .turno-principal { flex: 1 1 auto; min-width: 0; padding: 3vh 3vw; border-radius: clamp(20px, 3vw, 48px); }
+    .tp-label { font-size: clamp(.9rem, min(2.2vw, 3.4vh), 2.6rem); margin-bottom: 2vh; }
+    .tp-num { font-size: min(25vw, 50vh); letter-spacing: -0.02em; }
+    .no-turno .tp-num { font-size: min(20vw, 40vh); }
+    .tp-caja { margin-top: 3vh; padding: 1.4vh 3vw; font-size: clamp(1.1rem, min(4.2vw, 6.5vh), 5rem); }
+    .side-panel { min-width: 0; flex: 0 0 22vw; justify-content: center; gap: 2.5vh; }
+    .next-card { padding: 2.5vh 1.5vw; }
+    .next-card .nc-label { font-size: clamp(.7rem, 1.3vw, 1.6rem); }
+    .next-card .nc-num { font-size: min(8vw, 12vh); }
+    .next-card.nc-after .nc-num { font-size: min(6vw, 9vh); }
+    .next-card .nc-caja { font-size: clamp(.8rem, 1.4vw, 1.8rem); }
+    .footer { padding: 1.4vh 3vw; }
+    .footer-msg { font-size: clamp(.8rem, 1.4vw, 1.8rem); }
+    .btn-probar { position: fixed; right: 12px; bottom: 56px; z-index: 20; background: #fff; border: 1px solid #cfd8e3;
+      border-radius: 10px; padding: 6px 12px; font-family: inherit; font-weight: 700; cursor: pointer; opacity: .75; }
+    .btn-probar:hover { opacity: 1; background: #F8E704; }
+    @media (max-aspect-ratio: 1/1) {
+      .main-area { flex-direction: column; justify-content: center; padding: 2vh 4vw; }
+      .turno-principal { width: 100%; padding: 2vh 4vw; }
+      .tp-num { font-size: min(34vw, 30vh); }
+      .tp-caja { font-size: clamp(1rem, min(6vw, 4.5vh), 3rem); padding: 1.2vh 5vw; }
+      .side-panel { flex: 0 0 auto; flex-direction: row; width: 100%; gap: 3vw; }
+      .next-card { flex: 1; padding: 1.5vh 2vw; }
+      .next-card .nc-num { font-size: min(13vw, 8vh); }
+      .next-card.nc-after .nc-num { font-size: min(11vw, 7vh); }
+    }
   </style>
 </head>
 <body>
@@ -334,6 +367,7 @@
 
 <!-- Audio de notificación generado con Web Audio API -->
 <audio id="audioEl" preload="auto"></audio>
+<button class="btn-probar" onclick="probarVoz()" title="Probar campanilla y voz">🔊 Probar voz</button>
 
 <script>
 // ── Configuración ──────────────────────────────────────────────────────────
@@ -408,20 +442,28 @@ function elegirVoz() {
   return v[0] || null;
 }
 if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => { vozES = elegirVoz(); };
+// Siempre intenta hablar; si no hay voz en español usa la voz por defecto con lang es-CO
 function hablarTurno(turno, caja) {
   if (!('speechSynthesis' in window)) return false;
   vozES = vozES || elegirVoz();
-  if (!vozES) return false;
   if (speechSynthesis.paused) speechSynthesis.resume();
   for (let i = 0; i < 2; i++) {
     const u = new SpeechSynthesisUtterance(textoVoz(turno, caja));
-    u.voice = vozES; u.lang = vozES.lang;
-    u.volume = Math.max(0.2, Math.min(1, cfgVolumen));
+    if (vozES) { u.voice = vozES; u.lang = vozES.lang; } else { u.lang = 'es-CO'; }
+    u.volume = Math.max(0.3, Math.min(1, cfgVolumen));
     u.rate = 0.9;
+    u.onerror = e => console.warn('Voz:', e.error);
     speechSynthesis.speak(u);
   }
   return true;
 }
+// Campanilla + voz
+function anunciar(turno, caja) {
+  if (cfgSilencio) return;
+  playDing();
+  setTimeout(() => hablarTurno(turno, caja), 1000);
+}
+function probarVoz() { anunciar(22, 2); }
 // ── Sonido con Web Audio API ───────────────────────────────────────────────
 // Campanilla fuerte: 3 notas x2, onda triangular, ganancia amplificada + compresor
 function playDing() {
@@ -437,7 +479,7 @@ function playDing() {
   comp.attack.value = 0.003;  comp.release.value = 0.2;
   master.connect(comp); comp.connect(audioCtx.destination);
 
-  [0, 1.1].forEach(rep => {
+  [0].forEach(rep => {
     [880, 1100, 1320].forEach((freq, i) => {
       const ini = t0 + rep + i * 0.22;
       const g = audioCtx.createGain();
@@ -488,8 +530,8 @@ function actualizarPantalla(estado) {
       const cajaColores = { 1: '#A8D5E2', 2: '#B5EAD7', 3: '#C9C0E8', 4: '#FFDAB9' };
       tpCaja.style.background = cajaColores[actual.caja] || '#A8D5E2';
 
-      // Voz (con campanilla de respaldo)
-      if (!cfgSilencio && !hablarTurno(actual.turno, actual.caja)) playDing();
+      // Campanilla + voz
+      anunciar(actual.turno, actual.caja);
     }
   } else {
     tpNum.textContent = '---';

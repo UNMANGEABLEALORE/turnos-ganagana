@@ -252,3 +252,68 @@
   font-size: 0.8rem;
   color: var(--text-light);
 }
+
+/* ══════════════════════════════════════════════════════════════
+   AUTO-AJUSTE: la pantalla llena cualquier dispositivo (TV, PC, tablet, celular)
+   Todo se mide en vw / vh / vmin, así no hay que hacer zoom manual.
+══════════════════════════════════════════════════════════════ */
+.dp-screen { height: 100vh; height: 100dvh; }
+.dp-header { padding: 1.6vh 3vw; gap: 2vw; }
+.dp-header-logo { font-size: clamp(1.6rem, 3.4vw, 4rem); }
+.dp-header-name { font-size: clamp(1.3rem, 2.8vw, 3.4rem); }
+.dp-clock { font-size: clamp(1.1rem, 2.4vw, 3rem); }
+.dp-conn { font-size: clamp(.75rem, 1.2vw, 1.4rem); }
+
+.dp-main {
+  min-height: 0;
+  gap: 3vw;
+  padding: 3vh 3vw;
+  align-items: stretch;
+}
+.dp-current-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 3vh 3vw;
+  border-radius: clamp(20px, 3vw, 48px);
+}
+.dp-label-top { font-size: clamp(.9rem, min(2.2vw, 3.4vh), 2.6rem); margin-bottom: 2vh; letter-spacing: .2em; }
+.dp-current-num {
+  /* 3 caracteres (letra + 2 dígitos) ocupan ~1.9em de ancho */
+  font-size: min(25vw, 50vh);
+  letter-spacing: -0.02em;
+}
+.dp-caja-pill {
+  margin-top: 3vh;
+  padding: 1.4vh 3vw;
+  font-size: clamp(1.1rem, min(4.2vw, 6.5vh), 5rem);
+}
+.dp-side { min-width: 0; flex: 0 0 22vw; justify-content: center; gap: 2.5vh; }
+.dp-next-card { padding: 2.5vh 1.5vw; border-radius: clamp(14px, 1.8vw, 28px); }
+.dp-next-label { font-size: clamp(.7rem, 1.3vw, 1.6rem); }
+.dp-next-num { font-size: min(8vw, 12vh); }
+.dp-next-num--small { font-size: min(6vw, 9vh); }
+.dp-next-caja { font-size: clamp(.8rem, 1.4vw, 1.8rem); }
+.dp-footer { padding: 1.4vh 3vw; font-size: clamp(.8rem, 1.4vw, 1.8rem); }
+.dp-footer-brand { font-size: clamp(.75rem, 1.2vw, 1.6rem); }
+
+.dp-test-voz {
+  background: #fff; border: 1px solid #cfd8e3; border-radius: 10px; cursor: pointer;
+  padding: 6px 12px; font-family: inherit; font-weight: 700; font-size: clamp(.7rem, 1vw, 1.2rem);
+  color: #1A382D; transition: background .15s, transform .12s;
+}
+.dp-test-voz:hover { background: #F8E704; transform: translateY(-1px); }
+
+/* Vertical (celular / tablet en vertical): turno arriba, siguientes abajo */
+@media (max-aspect-ratio: 1/1) {
+  .dp-main { flex-direction: column; justify-content: center; padding: 2vh 4vw; }
+  .dp-current-wrap { flex: 1 1 auto; width: 100%; padding: 2vh 4vw; }
+  .dp-current-num { font-size: min(34vw, 30vh); }
+  .dp-caja-pill { font-size: clamp(1rem, min(6vw, 4.5vh), 3rem); padding: 1.2vh 5vw; }
+  .dp-side { flex: 0 0 auto; flex-direction: row; width: 100%; gap: 3vw; }
+  .dp-next-card { flex: 1; padding: 1.5vh 2vw; }
+  .dp-next-num { font-size: min(13vw, 8vh); }
+  .dp-next-num--small { font-size: min(11vw, 7vh); }
+  .dp-next-label, .dp-next-caja { font-size: clamp(.7rem, 3vw, 1.2rem); }
+  .dp-header-name { font-size: clamp(1.1rem, 5vw, 2rem); }
+  .dp-clock { font-size: clamp(1rem, 4vw, 1.6rem); }
+}

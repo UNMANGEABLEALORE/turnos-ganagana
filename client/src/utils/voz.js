@@ -42,25 +42,37 @@ function elegirVoz() {
 }
 
 export function vozDisponible() {
-  return 'speechSynthesis' in window && !!(vozElegida || (vozElegida = elegirVoz()));
+  return 'speechSynthesis' in window;
+}
+
+/** Texto para mostrar en pantalla: qué voz se usará (ayuda a diagnosticar en cada equipo). */
+export function infoVoz() {
+  if (!('speechSynthesis' in window)) return { ok: false, texto: 'Este navegador no soporta voz' };
+  vozElegida = vozElegida || elegirVoz();
+  return vozElegida
+    ? { ok: true, texto: `Voz: ${vozElegida.name} (${vozElegida.lang})` }
+    : { ok: false, texto: 'Sin voz en español instalada: se usará la voz por defecto' };
 }
 
 if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
   window.speechSynthesis.onvoiceschanged = () => { vozElegida = elegirVoz(); };
 }
 
-/** Habla el llamado. Devuelve false si el navegador no tiene voz en español (para usar el sonido de respaldo). */
+/**
+ * Habla el llamado. SIEMPRE intenta hablar: si no hay voz en español instalada usa la
+ * voz por defecto del navegador con lang="es-CO". Devuelve false solo si no hay SpeechSynthesis.
+ */
 export function hablarTurno(turno, caja, { volumen = 1, repeticiones = 2 } = {}) {
   if (!('speechSynthesis' in window)) return false;
-  vozElegida = vozElegida || elegirVoz();
-  if (!vozElegida) return false;
   const synth = window.speechSynthesis;
+  vozElegida = vozElegida || elegirVoz();
   if (synth.paused) synth.resume();
   for (let i = 0; i < repeticiones; i++) {
     const u = new SpeechSynthesisUtterance(textoVoz(turno, caja));
-    u.voice = vozElegida; u.lang = vozElegida.lang;
-    u.volume = Math.max(0.2, Math.min(1, volumen));
+    if (vozElegida) { u.voice = vozElegida; u.lang = vozElegida.lang; } else { u.lang = 'es-CO'; }
+    u.volume = Math.max(0.3, Math.min(1, volumen));
     u.rate = 0.9; u.pitch = 1;
+    u.onerror = e => console.warn('Voz:', e.error);
     synth.speak(u);
   }
   return true;

@@ -1,7 +1,7 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSocket } from '../hooks/useSocket';
 import { formatTurno } from '../utils/formato';
-import { hablarTurno } from '../utils/voz';
+import { hablarTurno, infoVoz } from '../utils/voz';
 import './DisplayPage.css';
 
 const CAJA_COLORES = {
@@ -64,11 +64,23 @@ export default function DisplayPage() {
   }, [actual]);
 
   // Llama por voz; si el navegador no tiene voz en español, usa la campanilla de respaldo
+  // Primero suena la campanilla y enseguida la voz ("Turno a, veintidós. Diríjase a la caja número 2")
   function anunciar(t) {
     if (silencio) return;
-    const ok = hablarTurno(t.turno, t.caja, { volumen: volumenRef.current, repeticiones: 2 });
-    if (!ok) playDing();
+    playDing();
+    setTimeout(() => {
+      hablarTurno(t.turno, t.caja, { volumen: volumenRef.current, repeticiones: 2 });
+    }, 1000);
   }
+
+  const [vozTxt, setVozTxt] = useState({ ok: true, texto: '' });
+  useEffect(() => {
+    if (!activado) return;
+    const refrescar = () => setVozTxt(infoVoz());
+    refrescar();
+    const t = setInterval(refrescar, 2000);     // las voces cargan de forma asíncrona
+    return () => clearInterval(t);
+  }, [activado]);
 
   function activar() {
     // Desbloquea la síntesis de voz con un gesto del usuario
@@ -98,7 +110,7 @@ export default function DisplayPage() {
     master.connect(comp); comp.connect(ctx.destination);
 
     const notas = [880, 1100, 1320];
-    [0, 1.1].forEach(repeticion => {
+    [0].forEach(repeticion => {
       notas.forEach((freq, i) => {
         const ini = t0 + repeticion + i * 0.22;
         const g = ctx.createGain();
@@ -146,6 +158,8 @@ export default function DisplayPage() {
             {connected ? 'En línea' : 'Sin conexión'}
           </span>
           {silencio && <span className="dp-muted">🔇</span>}
+          <button className="dp-test-voz" onClick={() => anunciar({ turno: 22, caja: 2 })}
+            title={vozTxt.texto}>🔊 Probar voz</button>
         </div>
       </header>
 
