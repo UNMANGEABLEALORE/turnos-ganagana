@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSocket } from '../../controllers/useSocket';
 import { formatTurno } from '../../models/formato';
-import { hablarTurno, infoVoz, listarVoces, elegirVozManual } from '../../controllers/voz';
+import { hablarTurno, infoVoz, listarVoces, elegirVozManual, avisarSiSeBloquea } from '../../controllers/voz';
 import type { TurnoLlamado } from '../../models/types';
 import './DisplayPage.css';
 
@@ -18,6 +18,9 @@ export default function DisplayPage() {
   // Audio
   const audioCtx   = useRef<AudioContext | null>(null);
   const [activado, setActivado] = useState(false);
+  const activadoRef = useRef(false);            // la voz solo puede sonar después del clic en "Activar pantalla"
+  const [vozBloqueada, setVozBloqueada] = useState(false);
+  const silencioRef = useRef(false);
   const [silencio, setSilencio] = useState(false);
   const volumenRef = useRef(1);
 
@@ -51,7 +54,10 @@ export default function DisplayPage() {
     if (!config) return;
     volumenRef.current = config.volumen ?? 1;
     setSilencio(config.silencio ?? false);
+    silencioRef.current = config.silencio ?? false;
   }, [config]);
+
+  useEffect(() => { avisarSiSeBloquea(() => setVozBloqueada(true)); return () => avisarSiSeBloquea(null); }, []);
 
   // Detectar nuevo turno y animar + sonar
   useEffect(() => {
@@ -60,14 +66,15 @@ export default function DisplayPage() {
     if (id !== ultimoIdRef.current) {
       ultimoIdRef.current = id;
       setAnimKey(k => k + 1);
-      anunciar(actual);
+      // El turno que ya estaba en pantalla al abrir NO se anuncia (el navegador bloquearía la voz)
+      if (activadoRef.current) anunciar(actual);
     }
   }, [actual]);
 
   // Llama por voz; si el navegador no tiene voz en español, usa la campanilla de respaldo
   // Primero suena la campanilla y enseguida la voz ("Turno a, veintidós. Diríjase a la caja número 2")
   function anunciar(t: TurnoLlamado) {
-    if (silencio) return;
+    if (silencioRef.current) return;
     playDing();
     setTimeout(() => {
       hablarTurno(t.turno, t.caja, { volumen: volumenRef.current, repeticiones: 2 });
@@ -86,6 +93,8 @@ export default function DisplayPage() {
   }, [activado]);
 
   function activar() {
+    activadoRef.current = true;
+    setVozBloqueada(false);
     // Desbloquea la síntesis de voz con un gesto del usuario
     if ('speechSynthesis' in window) {
       const u = new SpeechSynthesisUtterance(' ');
@@ -99,7 +108,7 @@ export default function DisplayPage() {
   // Campanilla fuerte: 3 notas repetidas 2 veces, onda triangular (más presencia que
   // la senoidal), ganancia amplificada y compresor para subir volumen sin distorsionar.
   function playDing() {
-    if (!audioCtx.current || silencio) return;
+    if (!audioCtx.current || silencioRef.current) return;
     const vol = Math.max(0, Math.min(1, volumenRef.current));
     const ctx = audioCtx.current;
     if (ctx.state === 'suspended') ctx.resume();
@@ -150,6 +159,11 @@ export default function DisplayPage() {
 
   return (
     <div className="dp-screen">
+      {vozBloqueada && (
+        <button className="dp-voz-bloqueada" onClick={() => { activar(); anunciar({ turno: actual?.turno ?? 22, caja: actual?.caja ?? 2 }); }}>
+          🔇 El navegador bloqueó la voz. Toca aquí para volver a activarla
+        </button>
+      )}
       {/* Aviso visual para personas con dificultad auditiva: parpadea cada vez que se llama un turno */}
       {animKey > 0 && <div key={`flash-${animKey}`} className="dp-llamada-flash" aria-hidden="true" />}
       {/* ── Header ─────────────────────────────────────────────────── */}

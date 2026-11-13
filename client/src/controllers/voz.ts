@@ -106,23 +106,47 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
   window.speechSynthesis.onvoiceschanged = () => { vozElegida = elegirVoz(); };
 }
 
-function hablarRonda(partes: string[], volumen: number, alTerminar?: () => void): void {
+// Las frases en curso se guardan aquí: Chrome/Edge a veces "olvidan" una frase si nadie la referencia.
+const enCurso: SpeechSynthesisUtterance[] = [];
+
+/** Se llama cuando el navegador bloquea la voz (falta un toque del usuario en la página). */
+let alBloqueo: (() => void) | null = null;
+export function avisarSiSeBloquea(fn: (() => void) | null): void { alBloqueo = fn; }
+
+function vozLocal(): SpeechSynthesisVoice | null {
+  return listarVoces().find(x => x.localService) || null;
+}
+
+function hablarRonda(partes: string[], volumen: number, voz: SpeechSynthesisVoice | null,
+                     alTerminar?: () => void, alFallar?: () => void): void {
   const synth = window.speechSynthesis;
+  let arranco = false, fallo = false;
   partes.forEach((txt, i) => {
     const u = new SpeechSynthesisUtterance(txt);
-    if (vozElegida) { u.voice = vozElegida; u.lang = vozElegida.lang; } else { u.lang = 'es-CO'; }
+    if (voz) { u.voice = voz; u.lang = voz.lang; } else { u.lang = 'es-CO'; }
     u.volume = Math.max(0.4, Math.min(1, volumen));
     u.rate = 0.8;          // despacio
     u.pitch = 0.95;        // un poco más grave = más sereno
-    u.onerror = e => console.warn('Voz:', e.error);
-    if (i === partes.length - 1 && alTerminar) { u.onend = alTerminar; }
+    u.onstart = () => { arranco = true; };
+    u.onerror = e => {
+      console.warn('Voz:', e.error);
+      if (e.error === 'not-allowed') alBloqueo?.();
+      else if (!fallo && !arranco) { fallo = true; alFallar?.(); }
+    };
+    u.onend = () => {
+      const k = enCurso.indexOf(u); if (k >= 0) enCurso.splice(k, 1);
+      if (i === partes.length - 1) alTerminar?.();
+    };
+    enCurso.push(u);
     synth.speak(u);
   });
+  // Voces "Online": si en 3,5 s no empezó (red lenta o servicio caído), se repite con una voz instalada en el equipo
+  setTimeout(() => { if (!arranco && !fallo) { fallo = true; alFallar?.(); } }, 3500);
 }
 
 /**
- * Habla el llamado. SIEMPRE intenta hablar: si no hay voz en español instalada usa la
- * voz por defecto del navegador con lang="es-CO". Devuelve false solo si no hay SpeechSynthesis.
+ * Habla el llamado. SIEMPRE intenta hablar: voz elegida → si falla, voz instalada en el equipo →
+ * si no hay ninguna, la voz por defecto con lang="es-CO". Devuelve false solo si no hay SpeechSynthesis.
  */
 export function hablarTurno(
   turno: number | string, caja: number | string,
@@ -130,14 +154,20 @@ export function hablarTurno(
 ): boolean {
   if (!vozDisponible()) return false;
   const synth = window.speechSynthesis;
-  vozElegida = vozElegida || elegirVoz();
+  synth.cancel();                       // limpia frases atascadas de llamados anteriores
   if (synth.paused) synth.resume();
+  vozElegida = vozElegida || elegirVoz();
   const partes = partesVoz(turno, caja);
+  let voz = vozElegida;
   let restantes = repeticiones;
   const ronda = () => {
     restantes -= 1;
-    // Pausa de 1,2 s entre una repetición y la siguiente
-    hablarRonda(partes, volumen, restantes > 0 ? () => setTimeout(ronda, 1200) : undefined);
+    hablarRonda(partes, volumen, voz,
+      restantes > 0 ? () => setTimeout(ronda, 1200) : undefined,   // pausa entre repeticiones
+      () => {                                                      // respaldo: voz instalada
+        const local = vozLocal();
+        if (local && voz !== local) { synth.cancel(); voz = local; restantes += 1; ronda(); }
+      });
   };
   ronda();
   return true;

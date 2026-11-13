@@ -656,3 +656,9 @@
 .al-divider { margin-bottom: 1rem; }
 .al-particles { position: fixed; }
 @media (max-width: 700px) { .al-box { padding: 1.5rem 1.1rem; } }
+
+/* Mensajes de crear administrador: grandes y con color */
+.admin-msg-box { margin: 0.9rem 0; padding: 0.75rem 1rem; border-radius: 0.6rem; font-weight: 700; font-size: 0.95rem; line-height: 1.45; animation: flash-in .3s ease both; }
+.admin-msg-box--ok   { background: #d4f5e9; color: #0f5132; border: 1px solid #8fd9b6; }
+.admin-msg-box--err  { background: #fde8e8; color: #9b1c1c; border: 1px solid #f4b4b4; }
+.admin-msg-box--info { background: #fff7c2; color: #5c5300; border: 1px solid #F8E704; }

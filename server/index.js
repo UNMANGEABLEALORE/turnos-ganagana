@@ -56,6 +56,12 @@ function apagar() {
 process.on('SIGTERM', apagar);
 process.on('SIGINT',  apagar);
 
+// Render (plan gratis) apaga el servicio tras ~15 min sin visitas y al despertar BORRA el disco
+// (turnos y administradores creados). Un aviso cada 10 min lo mantiene despierto.
+if (process.env.RENDER_EXTERNAL_URL) {
+  setInterval(() => { fetch(process.env.RENDER_EXTERNAL_URL + '/api/estado').catch(() => {}); }, 10 * 60_000).unref();
+}
+
 server.listen(PUERTO, '0.0.0.0', () => {
   const esq = usaHttps ? 'https' : 'http';
   console.log(`\n✅ Servidor corriendo en ${esq}://0.0.0.0:${PUERTO}`);

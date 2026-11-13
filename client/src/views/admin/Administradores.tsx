@@ -29,8 +29,10 @@ export default function Administradores({ admin }: { admin: Administrador }) {
     // Validación lógica en el navegador (el servidor la repite)
     const err = primerError(validarNombreReal(f.nombre), validarUsuario(f.usuario), validarClave(f.clave), validarCorreo(f.email), validarGithub(f.github));
     if (err) { setMsg(`⚠️ ${err}`); return; }
+    setMsg('⏳ Creando…');
     const r = await api<{ admin: Administrador }>('/api/auth/admins', { method: 'POST', body: f });
-    setMsg(r.ok ? `✅ Administrador ${r.data.admin.nombre} creado` : `⚠️ ${r.data.error}`);
+    setMsg(r.ok ? `✅ Administrador ${r.data.admin.nombre} creado. Ya puede entrar con el usuario "${r.data.admin.usuario}".`
+                : `⚠️ ${r.data.error || (r.status === 401 ? 'Tu sesión expiró: vuelve a iniciar sesión.' : 'No se pudo crear el administrador.')}`);
     if (r.ok) { setF({ nombre: '', usuario: '', clave: '', rol: 'Administrador', email: '', github: '' }); cargar(); }
   }
   async function eliminar(a: Administrador) {
@@ -59,6 +61,12 @@ export default function Administradores({ admin }: { admin: Administrador }) {
         </table>
       </div>
 
+      {!admin.principal && (
+        <p className="admin-msg-box admin-msg-box--info">
+          ℹ️ Solo el <strong>administrador principal</strong> puede crear administradores. Entra con el usuario <strong>JUAN-PORRAS</strong>.
+        </p>
+      )}
+
       {admin.principal && (
         <form onSubmit={crear} className="admin-new">
           <h3>Nuevo administrador</h3>
@@ -77,10 +85,11 @@ export default function Administradores({ admin }: { admin: Administrador }) {
             <div className="form-group"><label>Usuario GitHub (opcional)</label>
               <input value={f.github} onChange={set('github')} maxLength={39} /></div>
           </div>
+          {msg && <p className={`admin-msg-box ${msg.startsWith('✅') ? 'admin-msg-box--ok' : msg.startsWith('⏳') ? 'admin-msg-box--info' : 'admin-msg-box--err'}`} role="status">{msg}</p>}
           <button className="btn-gg-primary" type="submit">➕ Crear administrador</button>
         </form>
       )}
-      {msg && <p className="admin-msg">{msg}</p>}
+      {msg && !admin.principal && <p className="admin-msg-box admin-msg-box--err">{msg}</p>}
     </section>
   );
 }
