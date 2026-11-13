@@ -28,7 +28,7 @@ export function validarEstablecimiento(nombre: string): Resultado {
   const t = nombre.trim();
   if (t.length < 2) return 'El nombre del establecimiento es muy corto.';
   if (t.length > 60) return 'El nombre del establecimiento no puede pasar de 60 caracteres.';
-  if (/[<>]/.test(t)) return 'El nombre no puede contener < ni >.';
+  if (!/^[\p{L}\p{N} .,&'’()\-#·]+$/u.test(t)) return 'Solo letras, números y . , & - # ( ) en el nombre.';
   return null;
 }
 

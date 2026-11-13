@@ -20,6 +20,15 @@ function registrar(io) {
     console.log(`[+] ${socket.id}`);
     let ultimoLlamado = 0;
 
+    // Anti-inundación: un equipo legítimo envía ~1 evento cada 10 s (heartbeat). Más de 300 en 10 s es un abuso.
+    const ventana = { n: 0, desde: Date.now() };
+    socket.use((_paquete, next) => {
+      const ahora = Date.now();
+      if (ahora - ventana.desde > 10_000) { ventana.n = 0; ventana.desde = ahora; }
+      if (++ventana.n > 300) { console.warn(`[!] ${socket.id} desconectado por inundación de eventos`); socket.disconnect(true); return; }
+      next();
+    });
+
     socket.on('identificar', (datos, cb) => {
       const responder = typeof cb === 'function' ? cb : () => {};
       try {

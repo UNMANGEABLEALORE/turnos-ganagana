@@ -10,8 +10,8 @@ function actualizar(req, res) {
   const { establecimiento, volumen, silencio } = req.body || {};
 
   if (establecimiento !== undefined && (typeof establecimiento !== 'string' || establecimiento.trim().length < 2 ||
-      establecimiento.length > 60 || /[<>]/.test(establecimiento))) {
-    return res.status(400).json({ ok: false, error: 'Nombre de establecimiento inválido (2 a 60 caracteres, sin < >).' });
+      establecimiento.length > 60 || !/^[\p{L}\p{N} .,&'’()\-#·]+$/u.test(establecimiento.trim()))) {
+    return res.status(400).json({ ok: false, error: 'Nombre de establecimiento inválido (2 a 60 caracteres: letras, números y . , & - # ( ) solamente).' });
   }
   if (volumen !== undefined && !(typeof volumen === 'number' && volumen >= 0 && volumen <= 1)) {
     return res.status(400).json({ ok: false, error: 'El volumen debe ser un número entre 0 y 1.' });

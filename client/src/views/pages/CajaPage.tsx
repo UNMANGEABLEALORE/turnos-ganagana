@@ -18,7 +18,7 @@ export default function CajaPage() {
     return null;
   }
 
-  const { connected, estado, config, cajasEstado, llamarTurno, bloqueoCaja, reintentarCaja } = useSocket({ tipo: 'caja', caja: cajaNum });
+  const { connected, sinInternet, estado, config, cajasEstado, llamarTurno, bloqueoCaja, reintentarCaja } = useSocket({ tipo: 'caja', caja: cajaNum });
   const estaActiva = cajasEstado?.[cajaNum] !== 'inactiva';
 
   const [ultimoTurno, setUltimoTurno] = useState<number | null>(null);
@@ -38,7 +38,7 @@ export default function CajaPage() {
   }, [estado, cajaNum]);
 
   const ejecutarLlamado = useCallback(async () => {
-    if (bloqueado.current || cargando || !connected || !estaActiva || bloqueoCaja) return;
+    if (bloqueado.current || cargando || !connected || sinInternet || !estaActiva || bloqueoCaja) return;
 
     bloqueado.current = true;
     setCargando(true);
@@ -59,7 +59,7 @@ export default function CajaPage() {
       // Desbloquear después de 800 ms para evitar rebote
       setTimeout(() => { bloqueado.current = false; }, 800);
     }
-  }, [cajaNum, cargando, connected, llamarTurno, bloqueoCaja]);
+  }, [cajaNum, cargando, connected, sinInternet, llamarTurno, bloqueoCaja]);
 
   // Tecla F9 — solo cuando el foco NO está en un input/select/textarea
   useEffect(() => {
@@ -136,9 +136,15 @@ export default function CajaPage() {
             <div className="caja-error">⚠️ {error}</div>
           )}
 
-          {!connected && (
+          {sinInternet && (
+            <div className="caja-warn caja-warn--internet" role="alert">
+              📡 <strong>Este equipo no tiene internet.</strong> No se puede llamar turnos ahora. Revisa el cable o el Wi-Fi: cuando vuelva la señal, la caja se reconecta sola y no se pierde ningún turno.
+            </div>
+          )}
+
+          {!connected && !sinInternet && (
             <div className="caja-warn">
-              ⚡ Sin conexión con el servidor. Espera a reconectar antes de llamar un turno.
+              ⚡ Sin conexión con el servidor. Reconectando automáticamente… espera antes de llamar un turno.
             </div>
           )}
 
@@ -151,7 +157,7 @@ export default function CajaPage() {
           <button
             className={`btn btn-${color} btn-llamar`}
             onClick={ejecutarLlamado}
-            disabled={!connected || cargando || !estaActiva || !!bloqueoCaja}
+            disabled={!connected || sinInternet || cargando || !estaActiva || !!bloqueoCaja}
           >
             {cargando ? '⏳ Asignando...' : '📣 Llamar siguiente turno'}
           </button>

@@ -67,4 +67,29 @@ function limitador({ max = 5, ventanaMs = 60_000, bloqueoMs = 5 * 60_000 } = {})
   };
 }
 
-module.exports = { cabeceras, forzarHttps, limitador };
+// ── Límite general de peticiones por IP (frena inundaciones y escaneos) ──────
+const contadores = new Map(); // ip → { n, reinicia }
+
+function limiteGeneral({ max = 600, ventanaMs = 60_000 } = {}) {
+  return (req, res, next) => {
+    const ip = req.ip || req.socket.remoteAddress;
+    const ahora = Date.now();
+    let c = contadores.get(ip);
+    if (!c || c.reinicia < ahora) { c = { n: 0, reinicia: ahora + ventanaMs }; contadores.set(ip, c); }
+    c.n += 1;
+    if (c.n > max) {
+      res.setHeader('Retry-After', Math.ceil((c.reinicia - ahora) / 1000));
+      return res.status(429).json({ ok: false, error: 'Demasiadas solicitudes. Espera un momento.' });
+    }
+    next();
+  };
+}
+
+// Limpieza periódica para que los mapas no crezcan sin fin
+setInterval(() => {
+  const ahora = Date.now();
+  for (const [ip, c] of contadores) if (c.reinicia < ahora) contadores.delete(ip);
+  for (const [ip, r] of intentos) if ((r.reinicia || 0) < ahora && (r.hasta || 0) < ahora) intentos.delete(ip);
+}, 5 * 60_000).unref();
+
+module.exports = { cabeceras, forzarHttps, limitador, limiteGeneral };

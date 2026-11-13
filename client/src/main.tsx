@@ -28,6 +28,11 @@ function TituloSincronizado(): null {
   return null;
 }
 
+// Permite que la app abra aunque el equipo se quede sin internet (ver public/sw.js)
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
+}
+
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <BrowserRouter>

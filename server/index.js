@@ -16,14 +16,45 @@ const server = usaHttps
   ? https.createServer({ key: fs.readFileSync(CERT_KEY), cert: fs.readFileSync(CERT_CRT) }, app)
   : http.createServer(app);
 
+/** Solo páginas de este mismo sitio pueden abrir el WebSocket (evita que un sitio malicioso use la sesión del admin). */
+function origenPermitido(req) {
+  const origen = req.headers.origin;
+  if (!origen) return true;                                   // herramientas y apps sin navegador
+  try {
+    const o = new URL(origen);
+    const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(':')[0];
+    if (o.hostname === host) return true;
+    if ((process.env.CORS_ORIGIN || '').split(',').includes(origen)) return true;
+    // Desarrollo: el servidor de Vite (puerto 5173) en la misma máquina o red local
+    if (process.env.NODE_ENV !== 'production' && /^(localhost|127\.0\.0\.1|192\.168\.|10\.)/.test(o.hostname)) return true;
+  } catch { /* origen ilegible → rechazado */ }
+  return false;
+}
+
 const io = new Server(server, {
-  cors: process.env.CORS_ORIGIN ? { origin: process.env.CORS_ORIGIN.split(','), credentials: true } : false
+  cors: process.env.CORS_ORIGIN ? { origin: process.env.CORS_ORIGIN.split(','), credentials: true } : false,
+  allowRequest: (req, cb) => cb(null, origenPermitido(req)),
+  maxHttpBufferSize: 1e5                                     // mensajes de máximo 100 KB
 });
 tiempoReal.setIo(io);
 socketController.registrar(io);
 
 // Crea los administradores iniciales al arrancar (y credenciales/administradores.json si hace falta)
 adminModel.listar();
+
+// Un error inesperado se registra pero NO tumba el servicio (los turnos no se interrumpen)
+process.on('uncaughtException',  e => console.error('Excepción no controlada:', e));
+process.on('unhandledRejection', e => console.error('Promesa rechazada sin manejar:', e));
+
+// Apagado ordenado (Render envía SIGTERM al reiniciar o desplegar)
+function apagar() {
+  console.log('Apagando el servidor…');
+  io.close();
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 4000).unref();
+}
+process.on('SIGTERM', apagar);
+process.on('SIGINT',  apagar);
 
 server.listen(PUERTO, '0.0.0.0', () => {
   const esq = usaHttps ? 'https' : 'http';

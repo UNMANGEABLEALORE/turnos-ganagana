@@ -36,6 +36,8 @@ export function useSocket({ tipo = 'caja', caja = null }: OpcionesSocket = {}) {
   const [presencia,   setPresencia]   = useState<Presencia | null>(null);
   const [cajasEstado, setCajasEstado] = useState<Record<number, EstadoCaja>>({ 1: 'activa', 2: 'activa', 3: 'activa', 4: 'activa' });
   const [bloqueoCaja, setBloqueoCaja] = useState<string>('');
+  // Internet del propio equipo (distinto de "conectado al servidor": el servidor puede caerse con internet y viceversa)
+  const [sinInternet, setSinInternet] = useState<boolean>(typeof navigator !== 'undefined' && navigator.onLine === false);
 
   const hbRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const desplazadaRef = useRef(false);   // si me quitaron la caja, no la recupero sola al reconectar
@@ -53,6 +55,12 @@ export function useSocket({ tipo = 'caja', caja = null }: OpcionesSocket = {}) {
       clearInterval(hbRef.current);
       hbRef.current = setInterval(() => socket.emit('heartbeat'), 10000);
     }
+
+    const alVolverInternet = () => { setSinInternet(false); if (!socket.connected) socket.connect(); };
+    const alPerderInternet = () => setSinInternet(true);
+    // Si la red se corta, se avisa en cuanto el navegador lo detecta (sin esperar a que el socket expire)
+    window.addEventListener('online',  alVolverInternet);
+    window.addEventListener('offline', alPerderInternet);
 
     function onConnect()    { setConnected(true); arrancar(); }
     function onDisconnect() { setConnected(false); clearInterval(hbRef.current); }
@@ -95,6 +103,8 @@ export function useSocket({ tipo = 'caja', caja = null }: OpcionesSocket = {}) {
 
     return () => {
       clearInterval(hbRef.current);
+      window.removeEventListener('online',  alVolverInternet);
+      window.removeEventListener('offline', alPerderInternet);
       socket.off('connect',               onConnect);
       socket.off('disconnect',            onDisconnect);
       socket.off('estado_actualizado',    onEstado);
@@ -110,6 +120,7 @@ export function useSocket({ tipo = 'caja', caja = null }: OpcionesSocket = {}) {
     return new Promise((resolve, reject) => {
       const errCaja = validarCaja(numCaja);          // validación lógica antes de enviar
       if (errCaja) { reject(new Error(errCaja)); return; }
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) { reject(new Error('Este equipo no tiene internet')); return; }
       if (!socket.connected) { reject(new Error('Sin conexión con el servidor')); return; }
       socket.emit('llamar_turno', { caja: numCaja }, (resp?: AckSocket) => {
         if (resp?.ok) resolve(resp);
@@ -121,5 +132,5 @@ export function useSocket({ tipo = 'caja', caja = null }: OpcionesSocket = {}) {
   // Reintentar tomar la caja (botón "Reintentar" cuando estaba ocupada)
   function reintentarCaja() { desplazadaRef.current = false; if (socket.connected) identificar(); }
 
-  return { connected, estado, config, presencia, cajasEstado, llamarTurno, bloqueoCaja, reintentarCaja };
+  return { connected, sinInternet, estado, config, presencia, cajasEstado, llamarTurno, bloqueoCaja, reintentarCaja };
 }

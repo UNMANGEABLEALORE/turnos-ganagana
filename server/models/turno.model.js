@@ -17,6 +17,7 @@ function asignarTurno(caja) {
     caja,
     llamado_en: new Date().toLocaleString('es-CO', { hour12: false })
   });
+  if (historial.length > 20000) historial.splice(0, historial.length - 20000);   // el archivo no crece sin fin
   store.guardar();
   return { turno, caja };
 }
