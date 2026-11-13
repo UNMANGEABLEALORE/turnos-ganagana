@@ -13,6 +13,16 @@ if %errorlevel% neq 0 (
   exit /b 1
 )
 
+rem MySQL de XAMPP (donde se guardan los administradores): se enciende si existe y no esta encendido
+if exist "C:\xampp\mysql\bin\mysqld.exe" (
+  tasklist /FI "IMAGENAME eq mysqld.exe" | find /I "mysqld.exe" >nul
+  if errorlevel 1 (
+    echo  [0/3] Encendiendo MySQL de XAMPP...
+    start "" /B "C:\xampp\mysql\bin\mysqld.exe" --defaults-file=C:\xampp\mysql\bin\my.ini --standalone
+    timeout /t 4 /nobreak >nul
+  )
+)
+
 echo  [1/3] Servidor: dependencias...
 cd /d "%~dp0server"
 if not exist node_modules (

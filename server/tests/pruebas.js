@@ -77,18 +77,18 @@ async function main() {
   check('servidor y cliente React (TypeScript) dan el MISMO resultado (0–2700)', iguales);
 
   // ── 2. Voz ─────────────────────────────────────────────────────────────────
-  seccion('Texto de la voz (clara, lenta y con apoyo para personas con dificultad auditiva)');
+  seccion('Texto de la voz (lee el turno tal como se ve: A01)');
   const voz = cargarTS('controllers/voz.ts');
 
-  const p22 = voz.partesVoz(22, 2);
-  check('A22 caja 2 → letra con nombre y palabra de apoyo', p22[0] === 'Atención. Turno, letra a, de Ana.', p22[0]);
-  check('A22 → número completo en palabras y dígito por dígito', p22[1] === 'Número veintidós. dos, dos.', p22[1]);
-  check('A22 → caja dicha con palabra ("número dos")', p22[2] === 'Diríjase a la caja número dos.', p22[2]);
-  check('A00 → "cero cero" / "cero, cero"', voz.partesVoz(0, 1)[1] === 'Número cero cero. cero, cero.', voz.partesVoz(0, 1)[1]);
-  check('B05 → "be, de Bogotá" y "cero cinco"', voz.partesVoz(105, 3)[0].includes('letra be, de Bogotá') && voz.partesVoz(105, 3)[1].includes('cero cinco'));
-  check('V (uve) y B (be) se distinguen por su palabra de apoyo', voz.partesVoz(2100, 1)[0].includes('Valentina') && voz.partesVoz(100, 1)[0].includes('Bogotá'));
-  check('C31 → "treinta y uno"', voz.partesVoz(231, 4)[1].includes('treinta y uno'));
-  check('Z99 → "zeta" y "noventa y nueve"', voz.partesVoz(2599, 1)[0].includes('zeta') && voz.partesVoz(2599, 1)[1].includes('noventa y nueve'));
+  check('A01 caja 2 → "Turno A cero uno. Diríjase a la caja número dos."',
+    voz.textoVoz(1, 2) === 'Turno A cero uno. Diríjase a la caja número dos.', voz.textoVoz(1, 2));
+  check('A22 → "Turno A veintidós"', voz.textoVoz(22, 2).startsWith('Turno A veintidós.'), voz.textoVoz(22, 2));
+  check('A00 → "Turno A cero cero"', voz.textoVoz(0, 1).startsWith('Turno A cero cero.'));
+  check('B05 → "Turno Be cero cinco"', voz.textoVoz(105, 3).startsWith('Turno Be cero cinco.'));
+  check('C31 → "treinta y uno"', voz.textoVoz(231, 4).includes('Ce treinta y uno'));
+  check('Z99 → "Turno Zeta noventa y nueve"', voz.textoVoz(2599, 1).startsWith('Turno Zeta noventa y nueve.'));
+  check('ya NO dice la palabra de apoyo ("de Ana")', !/ de Ana| de Bogotá/.test(voz.textoVoz(0, 1) + voz.textoVoz(100, 1)));
+  check('es una sola frase por llamado', voz.partesVoz(22, 2).length === 1);
   let vozOk = true;
   for (let n = 0; n < 2700; n++) for (const c of [1, 2, 3, 4]) {
     const tx = voz.textoVoz(n, c);

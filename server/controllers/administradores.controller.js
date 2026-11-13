@@ -6,71 +6,74 @@ const adminModel = require('../models/administrador.model');
 const { publico } = adminModel;
 const error = (res, status, msg) => res.status(status).json({ ok: false, error: msg });
 
+/** Errores de la base de datos → mensaje claro (sin detalles internos). */
+function errorGuardado(res, e) {
+  if (e.code === 'DUPLICADO') return error(res, 409, 'Ese usuario ya existe.');
+  console.error('Error guardando administrador:', e.code || e.message);
+  return error(res, 503, 'No se pudo guardar: la base de datos no respondió. Revisa que MySQL (XAMPP) esté encendido e inténtalo de nuevo.');
+}
+
 /** GET /api/auth/admins — el principal ve a todos; los demás solo a sí mismos. */
 function listar(req, res) {
   res.json(req.admin.principal ? adminModel.listar().map(publico) : [publico(req.admin)]);
 }
 
-/** POST /api/auth/admins — solo el principal. */
-function crear(req, res) {
+/** POST /api/auth/admins — solo el principal. Responde solo cuando el guardado está confirmado. */
+async function crear(req, res) {
   if (!req.admin.principal) return error(res, 403, 'Solo el administrador principal puede crear administradores.');
   const { usuario, clave, nombre, rol, email, github } = req.body || {};
   const correo = String(email || '').trim().toLowerCase();
 
-  const problema = v.validarNombreReal(nombre) || v.validarUsuario(usuario) || v.validarClave(clave) || v.validarCorreo(correo);
+  const problema = v.validarNombreReal(nombre) || v.validarUsuario(usuario) || v.validarClave(clave) ||
+                   v.validarCorreo(correo) || v.validarGithub(String(github || '').trim());
   if (problema) return error(res, 400, problema);
 
-  const lista = adminModel.listar();
-  if (lista.some(a => a.usuario.toLowerCase() === usuario.toLowerCase())) return error(res, 409, 'Ese usuario ya existe.');
-
-  const nuevo = {
-    id: Math.max(...lista.map(a => a.id)) + 1, usuario, nombre: v.formatearNombre(nombre),
-    rol: String(rol || 'Administrador').slice(0, 40), saludo: 'Tu acceso al panel está listo.',
-    avatar: '🧑‍💼', hash: sesion.hashPassword(clave), principal: false,
-    emails: correo ? [correo] : [], github: String(github || '').trim().slice(0, 39), debeCambiar: false
-  };
-  lista.push(nuevo);
-  adminModel.guardarLista(lista);
-  res.json({ ok: true, admin: publico(nuevo) });
+  try {
+    const nuevo = await adminModel.crear({
+      usuario, nombre: v.formatearNombre(nombre),
+      rol: String(rol || 'Administrador').trim().slice(0, 40) || 'Administrador',
+      saludo: 'Tu acceso al panel está listo.', avatar: '🧑‍💼',
+      hash: sesion.hashPassword(clave), principal: false,
+      emails: correo ? [correo] : [], github: String(github || '').trim().slice(0, 39), debeCambiar: false
+    });
+    res.json({ ok: true, admin: publico(nuevo), guardadoEn: adminModel.dondeSeGuarda() });
+  } catch (e) { errorGuardado(res, e); }
 }
 
 /** DELETE /api/auth/admins/:id — solo el principal; no se puede borrar a un principal. */
-function eliminar(req, res) {
+async function eliminar(req, res) {
   if (!req.admin.principal) return error(res, 403, 'Sin permiso.');
   const id = parseInt(req.params.id);
-  const lista = adminModel.listar();
-  const obj = lista.find(a => a.id === id);
+  const obj = adminModel.buscarPorId(id);
   if (!obj || obj.principal) return error(res, 400, 'No se puede eliminar ese administrador.');
-  adminModel.guardarLista(lista.filter(a => a.id !== id));
-  res.json({ ok: true });
+  try {
+    if (!(await adminModel.eliminar(id))) return error(res, 400, 'No se puede eliminar ese administrador.');
+    res.json({ ok: true, guardadoEn: adminModel.dondeSeGuarda() });
+  } catch (e) { errorGuardado(res, e); }
 }
 
 /** POST /api/auth/me/clave — cambia la contraseña del propio administrador. */
-function cambiarClave(req, res) {
+async function cambiarClave(req, res) {
   const { actual, nueva } = req.body || {};
   if (!sesion.checkPassword(actual, req.admin.hash)) return error(res, 401, 'Contraseña actual incorrecta.');
   const problema = v.validarClave(nueva, 'La nueva contraseña');
   if (problema) return error(res, 400, problema);
-  const lista = adminModel.listar();
-  const a = lista.find(x => x.id === req.admin.id);
-  a.hash = sesion.hashPassword(nueva);
-  a.debeCambiar = false;
-  adminModel.guardarLista(lista);
-  res.json({ ok: true });
+  try {
+    await adminModel.actualizar(req.admin.id, { hash: sesion.hashPassword(nueva), debeCambiar: false });
+    res.json({ ok: true, guardadoEn: adminModel.dondeSeGuarda() });
+  } catch (e) { errorGuardado(res, e); }
 }
 
 /** POST /api/auth/me/vinculos — vincula el correo de Google y el usuario de GitHub. */
-function vincular(req, res) {
+async function vincular(req, res) {
   const correo = String(req.body?.email || '').trim().toLowerCase();
   const github = String(req.body?.github || '').trim();
   const problema = v.validarCorreo(correo) || v.validarGithub(github);
   if (problema) return error(res, 400, problema);
-  const lista = adminModel.listar();
-  const a = lista.find(x => x.id === req.admin.id);
-  a.emails = correo ? [correo] : [];
-  a.github = github;
-  adminModel.guardarLista(lista);
-  res.json({ ok: true, admin: publico(a) });
+  try {
+    const a = await adminModel.actualizar(req.admin.id, { emails: correo ? [correo] : [], github });
+    res.json({ ok: true, admin: publico(a), guardadoEn: adminModel.dondeSeGuarda() });
+  } catch (e) { errorGuardado(res, e); }
 }
 
 module.exports = { listar, crear, eliminar, cambiarClave, vincular };

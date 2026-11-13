@@ -75,7 +75,7 @@ export default function PanelAdmin({ admin, onLogout, onActualizar, recienIngres
     if (err) { setMsgGuardar(`⚠️ ${err}`); return; }
     const res = await api('/api/config', { method: 'POST', body: { establecimiento: nombre, volumen, silencio } });
     if (res.status === 401) return onLogout();
-    if (res.ok) { setMsgGuardar('✅ Cambios guardados'); setTimeout(() => setMsgGuardar(''), 3000); }
+    if (res.ok) { setMsgGuardar('✅ Guardado con éxito'); setTimeout(() => setMsgGuardar(''), 3000); }
   }
 
   async function reiniciar() {

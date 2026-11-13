@@ -39,8 +39,6 @@ const io = new Server(server, {
 tiempoReal.setIo(io);
 socketController.registrar(io);
 
-// Crea los administradores iniciales al arrancar (y credenciales/administradores.json si hace falta)
-adminModel.listar();
 
 // Un error inesperado se registra pero NO tumba el servicio (los turnos no se interrumpen)
 process.on('uncaughtException',  e => console.error('Excepción no controlada:', e));
@@ -50,6 +48,7 @@ process.on('unhandledRejection', e => console.error('Promesa rechazada sin manej
 function apagar() {
   console.log('Apagando el servidor…');
   io.close();
+  require('./config/mysql').cerrar();
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 4000).unref();
 }
@@ -62,9 +61,11 @@ if (process.env.RENDER_EXTERNAL_URL) {
   setInterval(() => { fetch(process.env.RENDER_EXTERNAL_URL + '/api/estado').catch(() => {}); }, 10 * 60_000).unref();
 }
 
-server.listen(PUERTO, '0.0.0.0', () => {
+// Carga los administradores (MySQL si está configurado; si no, el archivo JSON) y luego abre el servidor
+adminModel.iniciar().then(() => server.listen(PUERTO, '0.0.0.0', () => {
   const esq = usaHttps ? 'https' : 'http';
   console.log(`\n✅ Servidor corriendo en ${esq}://0.0.0.0:${PUERTO}`);
   console.log(`   Pantalla pública:  ${esq}://localhost:${PUERTO}/pantalla`);
-  console.log(`   Panel admin:       ${esq}://localhost:${PUERTO}/admin\n`);
-});
+  console.log(`   Panel admin:       ${esq}://localhost:${PUERTO}/admin`);
+  console.log(`   Administradores:   ${adminModel.dondeSeGuarda()}\n`);
+}));

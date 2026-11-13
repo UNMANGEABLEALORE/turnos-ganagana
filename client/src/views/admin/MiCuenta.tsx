@@ -27,7 +27,7 @@ export default function MiCuenta({ admin, onActualizar }: { admin: Administrador
     const err = validarClave(nueva);
     if (err) { setMsg(`⚠️ ${err}`); return; }
     const r = await api('/api/auth/me/clave', { method: 'POST', body: { actual, nueva } });
-    setMsg(r.ok ? '✅ Contraseña actualizada' : `⚠️ ${r.data.error}`);
+    setMsg(r.ok ? '✅ Guardado con éxito: tu contraseña fue actualizada.' : `⚠️ ${r.data.error}`);
     if (r.ok) { setActual(''); setNueva(''); onActualizar({ ...admin, debeCambiar: false }); }
   }
   async function vincular(e: React.FormEvent) {
@@ -35,7 +35,7 @@ export default function MiCuenta({ admin, onActualizar }: { admin: Administrador
     const err = primerError(validarCorreo(email), validarGithub(github));
     if (err) { setMsg(`⚠️ ${err}`); return; }
     const r = await api<{ admin: Administrador }>('/api/auth/me/vinculos', { method: 'POST', body: { email, github } });
-    setMsg(r.ok ? '✅ Cuentas vinculadas' : `⚠️ ${r.data.error}`);
+    setMsg(r.ok ? '✅ Guardado con éxito: cuentas vinculadas.' : `⚠️ ${r.data.error}`);
     if (r.ok) onActualizar(r.data.admin);
   }
 

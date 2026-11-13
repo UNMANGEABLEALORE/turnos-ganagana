@@ -30,15 +30,15 @@ export default function Administradores({ admin }: { admin: Administrador }) {
     const err = primerError(validarNombreReal(f.nombre), validarUsuario(f.usuario), validarClave(f.clave), validarCorreo(f.email), validarGithub(f.github));
     if (err) { setMsg(`⚠️ ${err}`); return; }
     setMsg('⏳ Creando…');
-    const r = await api<{ admin: Administrador }>('/api/auth/admins', { method: 'POST', body: f });
-    setMsg(r.ok ? `✅ Administrador ${r.data.admin.nombre} creado. Ya puede entrar con el usuario "${r.data.admin.usuario}".`
+    const r = await api<{ admin: Administrador; guardadoEn?: string }>('/api/auth/admins', { method: 'POST', body: f });
+    setMsg(r.ok ? `✅ Guardado con éxito en ${r.data.guardadoEn || 'la base de datos'}: ${r.data.admin.nombre} ya puede entrar con el usuario "${r.data.admin.usuario}".`
                 : `⚠️ ${r.data.error || (r.status === 401 ? 'Tu sesión expiró: vuelve a iniciar sesión.' : 'No se pudo crear el administrador.')}`);
     if (r.ok) { setF({ nombre: '', usuario: '', clave: '', rol: 'Administrador', email: '', github: '' }); cargar(); }
   }
   async function eliminar(a: Administrador) {
     if (!window.confirm(`¿Eliminar a ${a.nombre}?`)) return;
-    const r = await api(`/api/auth/admins/${a.id}`, { method: 'DELETE' });
-    setMsg(r.ok ? '✅ Administrador eliminado' : `⚠️ ${r.data.error}`);
+    const r = await api<{ guardadoEn?: string }>(`/api/auth/admins/${a.id}`, { method: 'DELETE' });
+    setMsg(r.ok ? `✅ Cambio guardado con éxito: ${a.nombre} fue eliminado.` : `⚠️ ${r.data.error}`);
     cargar();
   }
 

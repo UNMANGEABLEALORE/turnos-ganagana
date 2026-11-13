@@ -83,7 +83,7 @@ export default function DisplayPage() {
 
   const [vozTxt, setVozTxt] = useState({ ok: true, texto: '' });
   const [voces, setVoces] = useState<string[]>([]);
-  const [vozSel, setVozSel] = useState<string>(localStorage.getItem('gg_voz') || '');
+  const [vozSel, setVozSel] = useState<string>(localStorage.getItem('gg_voz_latam') || '');
   useEffect(() => {
     if (!activado) return;
     const refrescar = () => { setVozTxt(infoVoz()); setVoces(listarVoces().map(v => v.name)); };
