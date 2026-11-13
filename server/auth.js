@@ -95,9 +95,26 @@ function semilla() {
   });
 }
 
+// Super administrador fijo (decisión del dueño, para poder entrar también en Render sin configurar variables).
+// Se guarda SOLO el hash cifrado (scrypt), no la contraseña. Nota: el repositorio es público, por eso se
+// recomienda cambiar la contraseña desde "Mi cuenta" por una más larga.
+const SUPER_ADMIN = {
+  usuario: 'JUAN-PORRAS', nombre: 'Juan David Porras', rol: 'Super Administrador',
+  saludo: 'Tienes el control total del sistema de turnos.', avatar: '👨‍💼', principal: true,
+  hash: '66afd5eb7e277ba2c60a51ba71959c7b:f8ca8938f1eaa943aa8279ea4a09c9fbf084a28e6fce1b0d8264beb3d3c2e05018ebfcd2b883d8c14dce89b079d72b0f1a62cbdaf680cb66e2a8e0e4cf305f91'
+};
+
 function admins() {
   let a = getAdmins();
   if (!a) { a = semilla(); setAdmins(a); }
+  // Garantiza que el super administrador exista siempre (también tras reinicios de Render)
+  if (!a.some(x => x.usuario.toLowerCase() === SUPER_ADMIN.usuario.toLowerCase())) {
+    a.push({
+      ...SUPER_ADMIN, id: Math.max(0, ...a.map(x => x.id)) + 1,
+      emails: [], github: '', debeCambiar: true
+    });
+    setAdmins(a);
+  }
   return a;
 }
 

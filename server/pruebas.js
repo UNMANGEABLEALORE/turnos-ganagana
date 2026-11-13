@@ -151,6 +151,13 @@ async function main() {
     const bueno = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ usuario: 'Ganaadmin', clave: CLAVE_PRUEBA, captcha: CAPTCHA_PRUEBA, consentimiento: true }) });
     check('el administrador definido en credenciales/administradores.json sí entra', bueno.status === 200);
+    const sa = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usuario: 'JUAN-PORRAS', clave: 'Seapto123', captcha: CAPTCHA_PRUEBA, consentimiento: true }) });
+    const saJ = await sa.json();
+    check('el super administrador JUAN-PORRAS existe siempre y entra', sa.status === 200 && saJ.admin.principal === true && saJ.admin.rol === 'Super Administrador', JSON.stringify(saJ));
+    const saMal = await fetch(`${BASE}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usuario: 'JUAN-PORRAS', clave: 'otra-clave', captcha: CAPTCHA_PRUEBA, consentimiento: true }) });
+    check('JUAN-PORRAS con contraseña incorrecta → 401', saMal.status === 401);
     const cookieA = (bueno.headers.get('set-cookie') || '').split(';')[0];
     const cj = await (await fetch(`${BASE}/api/auth/me`, { headers: { cookie: cookieA } })).json();
     check('la sesión usa el nombre real del archivo (bienvenida personalizada)', cj.admin && cj.admin.nombre === 'Laura Martínez', JSON.stringify(cj));
