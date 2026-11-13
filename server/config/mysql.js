@@ -6,8 +6,8 @@
  *
  * Seguridad: todas las consultas son PARAMETRIZADAS (signos ?), así que la inyección SQL no es posible.
  */
-const mysql = require('mysql2/promise');
-
+// mysql2 se carga SOLO si MySQL está configurado: si la librería faltara (por ejemplo en Render),
+// el servidor sigue funcionando con el archivo JSON en vez de caerse.
 let pool = null;
 
 const configurado = () => !!(process.env.MYSQL_HOST && process.env.MYSQL_USER && process.env.MYSQL_DATABASE);
@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS administradores (
 async function conectar() {
   if (!configurado()) return null;
   if (pool) return pool;
+  const mysql = require('mysql2/promise');
   pool = mysql.createPool({
     host: process.env.MYSQL_HOST,
     port: parseInt(process.env.MYSQL_PORT) || 3306,
