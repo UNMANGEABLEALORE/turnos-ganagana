@@ -151,3 +151,9 @@ Las tablas se crean solas al arrancar y tienen **RLS activado**: la API pÃºblica
 - Muchos navegadores de televisor **no traen voz**: si es asÃ­, la pantalla lo avisa y los turnos se anuncian con la campanilla
   y en grande. Para tener voz, conecta al TV un dispositivo con Chrome (Chromecast con Google TV, Fire TV, mini-PC o portÃ¡til por HDMI).
 - Desactiva en el televisor el **ahorro de energÃ­a / apagado automÃ¡tico** para que no se apague durante la jornada.
+
+## 13. Panel de administración: número, cajas y actividad
+- **Fijar número actual:** si el rollo de papel y el sistema no coinciden, escribe el próximo turno (por ejemplo F23). La numeración **no se reinicia sola** al otro día; el contador se guarda en Supabase.
+- **Cajas:** *Agregar Caja N* crea la siguiente caja (hasta 12) y muestra su enlace (/caja/5, /caja/6…) con botón *Copiar*. Solo se quita la última, y solo si nadie la usa.
+- **Actividad de los administradores:** tabla con fecha, quién, qué hizo y detalle (ingresos, intentos fallidos, número fijado, cajas, configuración, administradores). El administrador principal ve a todos y puede filtrar; los demás solo ven lo suyo. Se guarda 90 días.
+- **Turnos:** el historial se depura solo a los 7 días; el contador y la actividad (90 días) no se tocan antes.
