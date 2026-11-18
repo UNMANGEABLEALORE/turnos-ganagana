@@ -17,6 +17,10 @@ import TarjetaEstado from './TarjetaEstado';
 import MiCuenta from './MiCuenta';
 import Administradores from './Administradores';
 import EstadoSistema from './EstadoSistema';
+import FijarNumero from './FijarNumero';
+import CajasAdmin from './CajasAdmin';
+import Actividad from './Actividad';
+import { listaCajas, colorGG } from '../../models/cajas';
 
 // ── PANEL PRINCIPAL ────────────────────────────────────────────────────────────
 export default function PanelAdmin({ admin, onLogout, onActualizar, recienIngresado }: {
@@ -66,7 +70,7 @@ export default function PanelAdmin({ admin, onLogout, onActualizar, recienIngres
   useEffect(() => {
     if (!presencia) return;
     const e: { tipo: string; detalle: string }[] = [];
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 1; i <= (config?.numCajas ?? 4); i++) {
       if (presencia.cajas?.[i]?.falla)
         e.push({ tipo: `Caja ${i}`, detalle: presencia.cajas[i].detalle });
     }
@@ -108,12 +112,7 @@ export default function PanelAdmin({ admin, onLogout, onActualizar, recienIngres
     await api(`/api/caja/${caja}/estado`, { method: 'POST', body: { estado: nuevo } });
   }
 
-  const CAJAS = [
-    { num: 1, color: 'gg-1', icono: '🖥️' },
-    { num: 2, color: 'gg-2', icono: '🖥️' },
-    { num: 3, color: 'gg-3', icono: '🖥️' },
-    { num: 4, color: 'gg-4', icono: '🖥️' },
-  ];
+  const CAJAS = listaCajas(config?.numCajas ?? 4).map(num => ({ num, color: `gg-${colorGG(num)}`, icono: '🖥️' }));
 
   return (
     <div className="admin-page">
@@ -170,7 +169,7 @@ export default function PanelAdmin({ admin, onLogout, onActualizar, recienIngres
           </div>
         )}
 
-        <EstadoSistema />
+        <EstadoSistema numCajas={config?.numCajas} />
 
         <MiCuenta admin={admin} onActualizar={onActualizar} />
 
@@ -249,6 +248,10 @@ export default function PanelAdmin({ admin, onLogout, onActualizar, recienIngres
           </div>
         </section>
 
+        <FijarNumero proximo={estado?.contador} />
+
+        <CajasAdmin numCajas={config?.numCajas ?? 4} />
+
         {/* Configuración */}
         <section className="card admin-section">
           <h2>Configuración general</h2>
@@ -289,6 +292,8 @@ export default function PanelAdmin({ admin, onLogout, onActualizar, recienIngres
         </section>
 
         <Administradores admin={admin} />
+
+        <Actividad admin={admin} />
 
         {/* Historial */}
         <section className="card admin-section">

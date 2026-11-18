@@ -5,4 +5,9 @@ function formatTurno(n) {
   const letra = String.fromCharCode(65 + (Math.floor(num / 100) % 26));
   return letra + String(num % 100).padStart(2, '0');
 }
-module.exports = { formatTurno };
+/** "F23" → 523 (letra × 100 + número). Devuelve null si no tiene la forma letra + dos dígitos. */
+function parseTurno(texto) {
+  const m = /^([A-Za-z])(\d{2})$/.exec(String(texto ?? '').trim());
+  return m ? (m[1].toUpperCase().charCodeAt(0) - 65) * 100 + Number(m[2]) : null;
+}
+module.exports = { formatTurno, parseTurno };

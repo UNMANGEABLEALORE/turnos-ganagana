@@ -4,6 +4,7 @@ import type {
   AckSocket, ConfigSistema, EstadoCaja, EstadoSistema, Presencia
 } from '../models/types';
 import { validarCaja } from '../models/validaciones';
+import { MAX_CAJAS } from '../models/cajas';
 
 // Identificador del equipo/pestaña: sobrevive a recargas (sessionStorage) pero NO se
 // comparte entre equipos ni entre pestañas distintas. Sirve para que el servidor
@@ -125,7 +126,7 @@ export function useSocket({ tipo = 'caja', caja = null, alNuevoTurno }: Opciones
 
   function llamarTurno(numCaja: number): Promise<AckSocket> {
     return new Promise((resolve, reject) => {
-      const errCaja = validarCaja(numCaja);          // validación lógica antes de enviar
+      const errCaja = validarCaja(numCaja, MAX_CAJAS);          // validación lógica antes de enviar
       if (errCaja) { reject(new Error(errCaja)); return; }
       if (typeof navigator !== 'undefined' && navigator.onLine === false) { reject(new Error('Este equipo no tiene internet')); return; }
       if (!socket.connected) { reject(new Error('Sin conexión con el servidor')); return; }

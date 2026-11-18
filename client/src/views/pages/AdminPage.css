@@ -675,3 +675,13 @@
 .sis-h3 { color: #016630; margin: 1rem 0 0.4rem; font-size: 0.95rem; }
 .sis-eventos { list-style: none; margin: 0; padding: 0.6rem 0.8rem; background: #1A382D; color: #e8f2ea; border-radius: 0.6rem;
   font-family: 'Courier New', monospace; font-size: 0.75rem; line-height: 1.6; max-height: 14rem; overflow-y: auto; }
+
+/* Fijar número, cajas y actividad */
+.fn-fila { display: flex; flex-wrap: wrap; gap: 0.7rem; align-items: center; margin: 0.6rem 0; }
+.fn-input { width: 7rem; text-align: center; font-size: 1.6rem; font-weight: 900; letter-spacing: 0.15em; text-transform: uppercase;
+  padding: 0.5rem 0.6rem; border: 2px solid #d7e6c8; border-radius: 0.6rem; font-family: inherit; color: #1A382D; }
+.fn-input:focus { outline: none; border-color: #016630; }
+.act-filtro { padding: 0.55rem 0.8rem; border: 1.5px solid #d7e6c8; border-radius: 0.6rem; font-family: inherit; }
+.act-alerta { background: #fff0f0; }
+.act-alerta td { color: #9b1c1c; }
+.btn:disabled, .btn-gg-primary:disabled { opacity: 0.5; cursor: not-allowed; }

@@ -10,18 +10,18 @@ const presencia = {};
 // ocupacion[caja] = { clientId, socketId, liberadaEn }
 const ocupacion = {};
 
-function calcularPresencia() {
+function calcularPresencia(total = 4) {
   const ahora = Date.now();
   const resultado = {
     cajas: {},
     pantalla: { conectada: false, falla: false, detalle: '' },
     admin:    { conectada: false }
   };
-  for (let i = 1; i <= 4; i++) resultado.cajas[i] = { conectada: false, falla: false, detalle: '' };
+  for (let i = 1; i <= total; i++) resultado.cajas[i] = { conectada: false, falla: false, detalle: '' };
 
   for (const info of Object.values(presencia)) {
     const timedOut = (ahora - info.lastHB) > TIMEOUT_HB;
-    if (info.tipo === 'caja' && info.caja) {
+    if (info.tipo === 'caja' && info.caja && resultado.cajas[info.caja]) {
       resultado.cajas[info.caja].conectada = true;
       if (timedOut) {
         resultado.cajas[info.caja].falla   = true;

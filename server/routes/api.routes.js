@@ -4,6 +4,7 @@ const turnos = require('../controllers/turno.controller');
 const config = require('../controllers/config.controller');
 const cajas  = require('../controllers/caja.controller');
 const sistema = require('../controllers/sistema.controller');
+const actividad = require('../controllers/actividad.controller');
 const { requireAdmin } = require('../middlewares/autenticacion');
 
 const router = Router();
@@ -22,5 +23,8 @@ router.post('/config', requireAdmin, config.actualizar);
 router.post('/caja/:id/estado', requireAdmin, cajas.cambiarEstado);
 router.post('/caja/:id/liberar', requireAdmin, cajas.liberar);
 router.get ('/sistema', requireAdmin, sistema.estado);
+router.post('/contador', requireAdmin, turnos.fijar);
+router.post('/cajas', requireAdmin, cajas.cambiarCantidad);
+router.get ('/actividad', requireAdmin, actividad.listar);
 
 module.exports = router;

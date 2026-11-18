@@ -11,3 +11,9 @@ export function formatTurno(n: number | string | null | undefined): string {
   const letra = String.fromCharCode(65 + (Math.floor(num / 100) % 26));
   return letra + String(num % 100).padStart(2, '0');
 }
+
+/** "F23" → 523 (letra × 100 + número). null si no es una letra seguida de dos dígitos. Igual que en el servidor. */
+export function parseTurno(texto: string): number | null {
+  const m = /^([A-Za-z])(\d{2})$/.exec(String(texto ?? '').trim());
+  return m ? (m[1].toUpperCase().charCodeAt(0) - 65) * 100 + Number(m[2]) : null;
+}

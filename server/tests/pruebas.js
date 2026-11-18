@@ -12,7 +12,7 @@ let ioc;
 try { ioc = require('socket.io-client'); }
 catch { ioc = require(path.join(__dirname, '..', '..', 'client', 'node_modules', 'socket.io-client')); }
 
-const { formatTurno } = require('../utils/turno');
+const { formatTurno, parseTurno } = require('../utils/turno');
 const ts = require(path.join(__dirname, '..', '..', 'client', 'node_modules', 'typescript'));
 /** Compila un .ts del cliente y lo ejecuta aislado (así se prueba el código REAL del frontend). */
 function cargarTS(rel, extra = {}) {
@@ -75,6 +75,11 @@ async function main() {
     if (a !== b || a !== c) { iguales = false; console.log('   difiere en', n, a, b, c); break; }
   }
   check('servidor y cliente React (TypeScript) dan el MISMO resultado (0–2700)', iguales);
+  let idaVuelta = true;
+  for (let n = 0; n < 2600; n++) if (parseTurno(formatTurno(n)) !== n || clienteFmt.parseTurno(formatTurno(n)) !== n) { idaVuelta = false; break; }
+  check('"F23" ↔ 523: escribir un turno y leerlo da el mismo número en los 2600 casos (servidor y cliente)', idaVuelta);
+  check('parseTurno acepta f23 y rechaza F2, FF23, 23F, F23X, vacío y números',
+    parseTurno('f23') === 523 && ['F2', 'FF23', '23F', 'F23X', '', 5, null, "F2'--"].every(x => parseTurno(x) === null && clienteFmt.parseTurno(x) === null));
 
   // ── 2. Voz ─────────────────────────────────────────────────────────────────
   seccion('Texto de la voz (lee el turno tal como se ve: A01)');
@@ -140,6 +145,7 @@ async function main() {
 
   seccion('Validaciones lógicas del frontend (TypeScript)');
   check('caja 1–4 válidas, 0/5/"x" inválidas', [1,2,3,4].every(c => vc.validarCaja(c) === null) && vc.validarCaja(0) && vc.validarCaja(5) && vc.validarCaja('x'));
+  check('con 8 cajas configuradas la caja 7 es válida y la 9 no', vc.validarCaja(7, 8) === null && vc.validarCaja(9, 8) !== null && vc.validarCaja(1.5, 8) !== null);
   check('volumen fuera de 0–1 se rechaza', vc.validarVolumen(1.5) !== null && vc.validarVolumen(-0.1) !== null && vc.validarVolumen(0.5) === null);
   check('contraseña débil/corta se rechaza', vc.validarClave('abc') !== null && vc.validarClave('soloLetrasAqui') !== null && vc.validarClave('Segura123') === null);
   check('usuario inválido se rechaza', vc.validarUsuario('a b') !== null && vc.validarUsuario('laura.mz') === null);

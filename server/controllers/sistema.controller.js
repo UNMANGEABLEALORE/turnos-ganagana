@@ -4,6 +4,7 @@
  */
 const configModel = require('../models/configuracion.model');
 const adminModel  = require('../models/administrador.model');
+const { direccionPublica } = require('../utils/direccion');
 const { ahoraLocal } = require('../services/jornada.service');
 
 const INICIO = new Date();
@@ -15,7 +16,8 @@ function estado(req, res) {
     encendidoDesde: INICIO.toISOString(),
     segundosEncendido: Math.round(process.uptime()),
     enRender: !!process.env.RENDER,
-    direccion: process.env.RENDER_EXTERNAL_URL || `${proto}://${req.headers.host}`,
+    direccion: direccionPublica(req),
+    numCajas: configModel.getNumCajas(),
     turnosPermanentes: configModel.dondeSeGuardanTurnos() === 'postgres',
     almacenamiento: adminModel.dondeSeGuarda(),
     reinicioDiario: configModel.getConfig('reinicio_diario') === true,

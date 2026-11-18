@@ -9,6 +9,7 @@ const sesion  = require('../utils/sesion');
 const captcha = require('../services/captcha.service');
 const oauth   = require('../services/oauth.service');
 const adminModel = require('../models/administrador.model');
+const actividad  = require('../models/actividad.model');
 const { getSessionSecret } = require('../models/configuracion.model');
 const { adminDeCookie, iniciarSesion, cerrarSesion } = require('../middlewares/autenticacion');
 
@@ -46,15 +47,19 @@ async function login(req, res) {
   const ok = sesion.checkPassword(clave, a ? a.hash : 'x:00');
   if (!a || !ok) {
     res.locals.fallo();
+    if (a) await actividad.registrar(a, 'Intento de acceso fallido', 'Contraseña incorrecta', req.ip);
     return res.status(401).json({ ok: false, error: 'Usuario o contraseña incorrectos.' });
   }
   res.locals.exito();
   iniciarSesion(req, res, a, 'clave');
+  await actividad.registrar(a, 'Inicio de sesión', 'Con usuario y contraseña', req.ip);
   res.json({ ok: true, admin: adminModel.publico(a) });
 }
 
 /** POST /api/auth/logout */
-function logout(req, res) {
+async function logout(req, res) {
+  const quien = adminDeCookie(req.headers.cookie);
+  if (quien) await actividad.registrar(quien, 'Cierre de sesión', '', req.ip);
   cerrarSesion(req, res);
   res.json({ ok: true });
 }
@@ -90,6 +95,7 @@ async function oauthCallback(req, res) {
     const admin = oauth.buscarAdmin(nombre, await oauth.perfil(nombre, token));
     if (!admin) return res.redirect(aLogin('Esta cuenta no está autorizada como administrador'));
     iniciarSesion(req, res, admin, nombre);
+    await actividad.registrar(admin, 'Inicio de sesión', `Con ${nombre === 'google' ? 'Google' : 'GitHub'}`, req.ip);
     res.redirect('/admin');
   } catch (e) {
     console.error('Error OAuth:', e.message);

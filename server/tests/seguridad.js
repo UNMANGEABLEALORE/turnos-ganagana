@@ -95,11 +95,11 @@ async function main() {
     // ───────────────────────────────────────────────────────────────────────
     seccion('Sesión, autenticación y fuerza bruta');
     const rutasAdmin = [['GET', '/api/historial'], ['GET', '/api/presencia'], ['POST', '/api/reset'], ['POST', '/api/config'],
-      ['POST', '/api/caja/1/estado'], ['POST', '/api/caja/1/liberar'], ['GET', '/api/auth/admins'], ['POST', '/api/auth/admins'],
+      ['POST', '/api/caja/1/estado'], ['POST', '/api/caja/1/liberar'], ['POST', '/api/contador'], ['POST', '/api/cajas'], ['GET', '/api/actividad'], ['GET', '/api/auth/admins'], ['POST', '/api/auth/admins'],
       ['DELETE', '/api/auth/admins/1'], ['POST', '/api/auth/me/clave'], ['POST', '/api/auth/me/vinculos']];
     let abiertas = [];
     for (const [m, r] of rutasAdmin) { const x = await fetch(BASE + r, { method: m, headers: { 'Content-Type': 'application/json' }, body: m === 'GET' ? undefined : '{}' }); if (x.status !== 401) abiertas.push(`${m} ${r}→${x.status}`); }
-    check('las 11 rutas de administración exigen sesión (401)', abiertas.length === 0, abiertas.join(', '));
+    check('las 14 rutas de administración exigen sesión (401)', abiertas.length === 0, abiertas.join(', '));
     const falsa = await fetch(`${BASE}/api/historial`, { headers: { cookie: 'gg_sid=eyJ0Ijoic2VzaW9uIiwiaWQiOjEsImV4cCI6OTk5OTk5OTk5OTk5OX0.firmafalsa' } });
     check('cookie de sesión FALSIFICADA es rechazada', falsa.status === 401);
     const sinFirma = await fetch(`${BASE}/api/historial`, { headers: { cookie: 'gg_sid=eyJ0Ijoic2VzaW9uIiwiaWQiOjEsImV4cCI6OTk5OTk5OTk5OTk5OX0' } });

@@ -2,6 +2,7 @@
 const sesion = require('../utils/sesion');
 const v      = require('../utils/validaciones');
 const adminModel = require('../models/administrador.model');
+const actividad  = require('../models/actividad.model');
 
 const { publico } = adminModel;
 const error = (res, status, msg) => res.status(status).json({ ok: false, error: msg });
@@ -36,6 +37,7 @@ async function crear(req, res) {
       hash: sesion.hashPassword(clave), principal: false,
       emails: correo ? [correo] : [], github: String(github || '').trim().slice(0, 39), debeCambiar: false
     });
+    await actividad.registrar(req.admin, 'Creó un administrador', `${nuevo.nombre} (usuario ${nuevo.usuario}, ${nuevo.rol})`, req.ip);
     res.json({ ok: true, admin: publico(nuevo), guardadoEn: adminModel.dondeSeGuarda() });
   } catch (e) { errorGuardado(res, e); }
 }
@@ -48,6 +50,7 @@ async function eliminar(req, res) {
   if (!obj || obj.principal) return error(res, 400, 'No se puede eliminar ese administrador.');
   try {
     if (!(await adminModel.eliminar(id))) return error(res, 400, 'No se puede eliminar ese administrador.');
+    await actividad.registrar(req.admin, 'Eliminó un administrador', `${obj.nombre} (usuario ${obj.usuario})`, req.ip);
     res.json({ ok: true, guardadoEn: adminModel.dondeSeGuarda() });
   } catch (e) { errorGuardado(res, e); }
 }
@@ -60,6 +63,7 @@ async function cambiarClave(req, res) {
   if (problema) return error(res, 400, problema);
   try {
     await adminModel.actualizar(req.admin.id, { hash: sesion.hashPassword(nueva), debeCambiar: false });
+    await actividad.registrar(req.admin, 'Cambió su contraseña', '', req.ip);
     res.json({ ok: true, guardadoEn: adminModel.dondeSeGuarda() });
   } catch (e) { errorGuardado(res, e); }
 }
@@ -72,6 +76,7 @@ async function vincular(req, res) {
   if (problema) return error(res, 400, problema);
   try {
     const a = await adminModel.actualizar(req.admin.id, { emails: correo ? [correo] : [], github });
+    await actividad.registrar(req.admin, 'Vinculó cuentas', `Google: ${correo || '—'} · GitHub: ${github || '—'}`, req.ip);
     res.json({ ok: true, admin: publico(a), guardadoEn: adminModel.dondeSeGuarda() });
   } catch (e) { errorGuardado(res, e); }
 }

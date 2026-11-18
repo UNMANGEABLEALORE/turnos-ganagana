@@ -10,6 +10,7 @@ const tiempoReal = require('./services/tiempoReal.service');
 const socketController = require('./controllers/socket.controller');
 const adminModel = require('./models/administrador.model');
 const store = require('./models/store');
+const actividad = require('./models/actividad.model');
 
 // HTTPS directo si hay certificados; si no, HTTP (Render ya aporta HTTPS)
 const usaHttps = fs.existsSync(CERT_KEY) && fs.existsSync(CERT_CRT);
@@ -79,6 +80,8 @@ server.on('error', e => {
   const dondeTurnos = await store.iniciar();
   require('./services/jornada.service').iniciar();
   await adminModel.iniciar();
+  actividad.depurar();                                // el reporte de actividad guarda 90 días
+  setInterval(() => actividad.depurar(), 3_600_000).unref();
   server.listen(PUERTO, '0.0.0.0', () => {
     const esq = usaHttps ? 'https' : 'http';
     console.log(`\n✅ Servidor corriendo en ${esq}://0.0.0.0:${PUERTO}`);

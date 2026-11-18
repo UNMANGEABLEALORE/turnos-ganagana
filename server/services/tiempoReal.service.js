@@ -8,6 +8,7 @@
  *  - Si el dueño se desconecta, su caja queda reservada GRACIA_MS por si solo recarga.
  */
 const { presencia, ocupacion, calcularPresencia } = require('../models/presencia.model');
+const configModel = require('../models/configuracion.model');
 
 const GRACIA_MS = parseInt(process.env.GRACIA_MS) || 15000;
 let io = null;
@@ -16,7 +17,7 @@ function setIo(instancia) { io = instancia; }
 function getIo() { return io; }
 
 function emitir(evento, datos) { if (io) io.emit(evento, datos); }
-function emitirPresencia() { emitir('presencia_actualizada', calcularPresencia()); }
+function emitirPresencia() { emitir('presencia_actualizada', calcularPresencia(configModel.getNumCajas())); }
 
 const socketVivo = id => !!id && !!io && io.sockets.sockets.has(id);
 
@@ -44,6 +45,9 @@ function intentarOcupar(socket, caja, clientId) {
   return { ok: true };
 }
 
+/** ¿Hay un equipo conectado usando esa caja ahora mismo? */
+function cajaEnUso(caja) { const o = ocupacion[caja]; return !!o && socketVivo(o.socketId); }
+
 /** Marca como "recién liberadas" las cajas de un socket que se desconectó. */
 function liberarSocket(socketId) {
   for (const occ of Object.values(ocupacion)) {
@@ -64,4 +68,4 @@ function liberarCaja(caja) {
   return true;
 }
 
-module.exports = { setIo, getIo, emitir, emitirPresencia, intentarOcupar, liberarSocket, liberarCaja };
+module.exports = { cajaEnUso, setIo, getIo, emitir, emitirPresencia, intentarOcupar, liberarSocket, liberarCaja };

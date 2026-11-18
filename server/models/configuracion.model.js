@@ -16,6 +16,7 @@ function getConfigPublica() {
     establecimiento: getConfig('establecimiento'),
     volumen:         parseFloat(getConfig('volumen')),
     silencio:        getConfig('silencio') === true || getConfig('silencio') === 'true',
+    numCajas:        getNumCajas(),
     reinicioDiario:  getConfig('reinicio_diario') === true,           // por defecto: NO (los turnos son de papel y siguen al otro día)
     horaReinicio:    getConfig('hora_reinicio') || '06:00'
   };
@@ -26,6 +27,19 @@ function getCajasEstado() { return store.datos.config.cajas_estado; }
 
 function setCajaEstado(caja, estado) {
   store.datos.config.cajas_estado[caja] = estado;
+  store.guardar();
+}
+
+// ── Cantidad de cajas (el administrador puede agregar o quitar desde el panel) ──
+const MAX_CAJAS = 12;
+function getNumCajas() { return Number(store.datos.config.num_cajas) || 4; }
+
+function setNumCajas(n) {
+  const cfg = store.datos.config, antes = getNumCajas();
+  cfg.num_cajas = n;
+  cfg.cajas_estado = cfg.cajas_estado || {};
+  for (let i = antes + 1; i <= n; i++) cfg.cajas_estado[i] = 'activa';
+  for (let i = n + 1; i <= antes; i++) delete cfg.cajas_estado[i];
   store.guardar();
 }
 
@@ -47,4 +61,4 @@ function getSessionSecret() {
 /** 'mysql' si turnos y contador tienen copia permanente en MySQL; 'archivo' si solo están en disco. */
 const dondeSeGuardanTurnos = () => store.dondeGuarda();
 
-module.exports = { getConfig, setConfig, getConfigPublica, getCajasEstado, setCajaEstado, getSessionSecret, dondeSeGuardanTurnos };
+module.exports = { getConfig, setConfig, getConfigPublica, getCajasEstado, setCajaEstado, getSessionSecret, dondeSeGuardanTurnos, getNumCajas, setNumCajas, MAX_CAJAS };

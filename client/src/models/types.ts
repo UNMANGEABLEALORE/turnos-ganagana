@@ -17,6 +17,7 @@ export interface ConfigSistema {
   establecimiento: string;
   volumen: number;     // 0..1
   silencio: boolean;
+  numCajas?: number;          // cuántas cajas hay (el administrador puede agregar)
   reinicioDiario?: boolean;   // el contador vuelve a A00 cada mañana
   horaReinicio?: string;      // "HH:MM", hora de Colombia
 }
@@ -26,6 +27,7 @@ export interface EstadoServidor {
   segundosEncendido: number;
   enRender: boolean;
   direccion: string;
+  numCajas?: number;
   turnosPermanentes: boolean;   // true = turnos y contador guardados en la base de datos (sobreviven a reinicios)
   almacenamiento: string;       // dónde están los administradores
   reinicioDiario: boolean;
@@ -72,3 +74,6 @@ export interface RespuestaApi<T = Record<string, unknown>> {
 
 /** Respuesta de los eventos Socket.IO con callback. */
 export interface AckSocket { ok: boolean; error?: string; turno?: number; caja?: number; }
+
+export interface FilaActividad { id: number; cuando: string; adminId: number | null; usuario: string; nombre: string; accion: string; detalle: string; ip: string; }
+export interface ResumenActividad { usuario: string; nombre: string; acciones: number; ultima: string; }

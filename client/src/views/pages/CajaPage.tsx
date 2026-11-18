@@ -3,9 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useSocket } from '../../controllers/useSocket';
 import { formatTurno } from '../../models/formato';
 import { validarCaja } from '../../models/validaciones';
+import { colorCaja, listaCajas, MAX_CAJAS } from '../../models/cajas';
 import './CajaPage.css';
-
-const CAJA_COLORES: Record<number, string> = { 1: 'sky', 2: 'mint', 3: 'lavender', 4: 'peach' };
 
 export default function CajaPage() {
   const { id } = useParams();
@@ -13,7 +12,7 @@ export default function CajaPage() {
   const navigate = useNavigate();
 
   // Validar caja
-  if (validarCaja(cajaNum) !== null) {   // validación lógica del parámetro de la URL
+  if (validarCaja(cajaNum, MAX_CAJAS) !== null) {   // validación lógica del parámetro de la URL
     navigate('/');
     return null;
   }
@@ -75,7 +74,7 @@ export default function CajaPage() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [ejecutarLlamado]);
 
-  const color = CAJA_COLORES[cajaNum] || 'sky';
+  const color = colorCaja(cajaNum);
 
   // Próximos turnos globales (los más recientes)
   const ultimos = estado?.ultimos || [];
@@ -171,7 +170,7 @@ export default function CajaPage() {
         <div className="card estado-card">
           <h3>Estado de las cajas</h3>
           <div className="estado-grid">
-            {[1, 2, 3, 4].map(c => {
+            {listaCajas(config?.numCajas ?? 4).map(c => {
               const info = estado?.cajas?.[c];
               const esEsta = c === cajaNum;
               return (

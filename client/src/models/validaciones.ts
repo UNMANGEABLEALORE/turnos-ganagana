@@ -6,12 +6,11 @@
 
 export type Resultado = string | null;
 
-export const CAJAS_VALIDAS = [1, 2, 3, 4] as const;
 
-export function validarCaja(valor: unknown): Resultado {
+/** `total` = cuántas cajas hay (por defecto 4; usa MAX_CAJAS para solo comprobar que sea un número razonable). */
+export function validarCaja(valor: unknown, total = 4): Resultado {
   const n = Number(valor);
-  return Number.isInteger(n) && (CAJAS_VALIDAS as readonly number[]).includes(n)
-    ? null : 'La caja debe ser 1, 2, 3 o 4.';
+  return Number.isInteger(n) && n >= 1 && n <= total ? null : `La caja debe ser un número de 1 a ${total}.`;
 }
 
 export function validarContadorTurno(valor: unknown): Resultado {

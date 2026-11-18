@@ -43,7 +43,7 @@ function registrar(io) {
         tiempoReal.liberarSocket(socket.id);   // si antes tenía otra caja, la suelta
 
         if (tipo === 'caja') {
-          if (!esCajaValida(caja)) return responder({ ok: false, error: 'Caja inválida' });
+          if (!esCajaValida(caja, configModel.getNumCajas())) return responder({ ok: false, error: `Esa caja no existe: hay ${configModel.getNumCajas()} cajas.` });
           if (!clientId) return responder({ ok: false, error: 'Falta identificador del equipo' });
           const r = tiempoReal.intentarOcupar(socket, caja, clientId);
           if (!r.ok) return responder(r);
@@ -69,7 +69,7 @@ function registrar(io) {
       const responder = typeof callback === 'function' ? callback : () => {};
       try {
         const caja = parseInt(payload?.caja);
-        if (!esCajaValida(caja)) return responder({ ok: false, error: 'Caja inválida' });
+        if (!esCajaValida(caja, configModel.getNumCajas())) return responder({ ok: false, error: `Esa caja no existe: hay ${configModel.getNumCajas()} cajas.` });
 
         // Solo el equipo que ocupa la caja puede llamar turnos desde ella
         const occ = ocupacion[caja];

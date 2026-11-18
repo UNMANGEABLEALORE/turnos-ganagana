@@ -56,7 +56,8 @@ function validarGithub(u) {
   return /^[A-Za-z0-9-]{1,39}$/.test(u) ? null : 'Usuario de GitHub inválido.';
 }
 
-const esCajaValida = n => [1, 2, 3, 4].includes(n);
+/** ¿Existe esa caja? `total` es cuántas cajas hay configuradas (por defecto 4). */
+const esCajaValida = (n, total = 4) => Number.isInteger(n) && n >= 1 && n <= total;
 
 module.exports = {
   validarNombreReal, formatearNombre, validarUsuario, validarClave, validarCorreo, validarGithub, esCajaValida

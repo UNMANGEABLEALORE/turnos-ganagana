@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { SERVER } from '../../controllers/api';
+import { colorCaja, listaCajas } from '../../models/cajas';
 import './SelectorPage.css';
-
-const CAJAS = [1, 2, 3, 4];
-const COLORES = ['sky', 'mint', 'lavender', 'peach'];
 
 export default function SelectorPage() {
   const navigate = useNavigate();
+  const [total, setTotal] = useState(4);   // cuántas cajas hay (el administrador puede agregar)
+  useEffect(() => {
+    fetch(`${SERVER}/api/config`).then(r => r.json()).then(c => { if (c.numCajas) setTotal(c.numCajas); }).catch(() => {});
+  }, []);
 
   return (
     <div className="selector-page">
@@ -17,10 +20,10 @@ export default function SelectorPage() {
 
         {/* Botones de caja — para las asesoras */}
         <div className="selector-grid">
-          {CAJAS.map((n, i) => (
+          {listaCajas(total).map(n => (
             <button
               key={n}
-              className={`btn btn-${COLORES[i]} selector-btn`}
+              className={`btn btn-${colorCaja(n)} selector-btn`}
               onClick={() => navigate(`/caja/${n}`)}
             >
               <span className="selector-num">{n}</span>

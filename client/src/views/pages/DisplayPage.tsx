@@ -3,14 +3,8 @@ import { useSocket } from '../../controllers/useSocket';
 import { formatTurno } from '../../models/formato';
 import { encolarLlamado, alIniciarSerie, infoVoz, listarVoces, elegirVozManual, avisarSiSeBloquea } from '../../controllers/voz';
 import type { TurnoLlamado } from '../../models/types';
+import { hexCaja } from '../../models/cajas';
 import './DisplayPage.css';
-
-const CAJA_COLORES: Record<number, string> = {
-  1: '#A8D5E2',
-  2: '#B5EAD7',
-  3: '#C9C0E8',
-  4: '#FFDAB9',
-};
 
 export default function DisplayPage() {
   // Cada turno que llega se pone en la fila de anuncios (aunque lleguen dos seguidos). Lo que ya estaba en pantalla al abrir NO se anuncia.
@@ -229,7 +223,7 @@ export default function DisplayPage() {
           {actual ? (
             <div
               className="dp-caja-pill"
-              style={{ background: CAJA_COLORES[actual.caja] || '#A8D5E2' }}
+              style={{ background: hexCaja(actual.caja) }}
             >
               DIRÍJASE A LA CAJA {actual.caja}
             </div>

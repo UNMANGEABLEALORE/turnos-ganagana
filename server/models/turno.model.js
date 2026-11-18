@@ -1,5 +1,6 @@
 /** models/turno.model.js — Contador de turnos, historial y estado general. */
 const store = require('./store');
+const configModel = require('./configuracion.model');
 
 /** Asigna el siguiente turno a una caja. Atómico: Node ejecuta esto sin interrupciones. */
 function asignarTurno(caja) {
@@ -38,7 +39,7 @@ function resetContador() {
 function getEstado() {
   const { historial, config } = store.datos;
   const cajas = {};
-  for (let i = 1; i <= 4; i++) {
+  for (let i = 1; i <= configModel.getNumCajas(); i++) {
     const regs = historial.filter(r => r.caja === i);
     cajas[i] = regs.length > 0
       ? { turno: regs[regs.length - 1].turno, llamado_en: regs[regs.length - 1].llamado_en }
@@ -49,4 +50,10 @@ function getEstado() {
   return { contador: config.contador, cajas, cajasEstado: config.cajas_estado, ultimos };
 }
 
-module.exports = { asignarTurno, getHistorial, resetContador, getEstado };
+/** Fija el PRÓXIMO turno que se va a llamar (para coincidir con el rollo de papel). */
+function fijarContador(n) {
+  store.datos.config.contador = n;
+  store.guardar();
+}
+
+module.exports = { fijarContador, asignarTurno, getHistorial, resetContador, getEstado };

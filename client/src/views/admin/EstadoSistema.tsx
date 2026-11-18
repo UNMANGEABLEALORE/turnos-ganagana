@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../controllers/api';
 import type { EstadoServidor } from '../../models/types';
+import { listaCajas } from '../../models/cajas';
 
 function duracion(seg: number): string {
   const d = Math.floor(seg / 86400), h = Math.floor((seg % 86400) / 3600), m = Math.floor((seg % 3600) / 60);
@@ -8,7 +9,7 @@ function duracion(seg: number): string {
 }
 
 // ── Operación del día: encendido, datos permanentes, reinicio diario y direcciones ──
-export default function EstadoSistema() {
+export default function EstadoSistema({ numCajas }: { numCajas?: number }) {
   const [s, setS] = useState<EstadoServidor | null>(null);
 
   useEffect(() => {
@@ -59,7 +60,7 @@ export default function EstadoSistema() {
 
       <h3 className="sis-h3">Direcciones para las cajas y el televisor</h3>
       <div className="admin-urls">
-        {[1, 2, 3, 4].map(c => (
+        {listaCajas(numCajas ?? s.numCajas ?? 4).map(c => (
           <div key={c} className="admin-url-row">
             <span className="admin-url-label">🖥️ Caja {c}</span>
             <code className="admin-url-code">{`${s.direccion}/caja/${c}`}</code>
