@@ -86,6 +86,9 @@ async function conectar() {
   if (!configurado()) return false;
   if (pool) return true;
   const url = process.env.DATABASE_URL;
+  if (/\[YOUR|PON_AQUI|\[TU-CLAVE|<password>/i.test(url)) {
+    throw new Error('DATABASE_URL todavía tiene la contraseña de ejemplo: reemplázala por la contraseña real de tu base de datos.');
+  }
 
   if (url.startsWith('pglite:')) {
     // Solo para PRUEBAS: Postgres de laboratorio dentro de Node (no hace falta instalar nada)
