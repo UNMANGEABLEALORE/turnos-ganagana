@@ -110,3 +110,36 @@ Cada dato se valida **dos veces**: en el navegador (para avisar rápido, `client
 - **Frontend:** React 18 + **TypeScript** + Vite, organizado en `client/src/models`, `controllers` y `views`. `npm run build --prefix client` revisa los tipos y compila.
 - **Servidor:** Node.js + Express + Socket.IO con arquitectura MVC (`server/models`, `controllers`, `routes`, `middlewares`, `services`). Ver README.md.
 - **Pruebas automáticas:** `npm test` o `node server/tests/pruebas.js` (91 comprobaciones: formato de turnos, voz, validaciones, credenciales, exclusividad de caja, datos inválidos). Usan puerto y archivos temporales; no tocan tus datos.
+
+## 12. Producción en Render (operación diaria 6 am – 11 pm)
+
+El turnero vive en **Render**: las cajas (PC) y el Smart TV solo necesitan internet y abrir su dirección.
+
+| Equipo | Dirección |
+|---|---|
+| Caja 1 … 4 (PC de cada asesora) | https://turnos-ganagana.onrender.com/caja/1 … /caja/4 |
+| Smart TV (sala de espera) | https://turnos-ganagana.onrender.com/pantalla |
+| Administración | https://turnos-ganagana.onrender.com/admin |
+
+**Automático, sin intervención:**
+- El contador vuelve a **A00 cada día a las 06:00** (hora de Colombia). Se cambia o desactiva en *Configuración general*.
+- Render vuelve a levantar el servicio si se cae (revisa `/api/salud`), y el servidor se mantiene despierto solo.
+- Las cajas y la pantalla se reconectan solas si se corta el internet.
+
+### Base de datos permanente (obligatoria para producción)
+El plan gratis de Render **borra el disco en cada reinicio**. Sin una base de datos externa, un reinicio a mitad del día
+vuelve el contador a A00 (números repetidos) y borra el historial y los administradores creados.
+Con MySQL configurado se guarda todo: contador, historial, configuración, administradores y sesiones.
+
+1. Crea una cuenta gratis en **TiDB Cloud** (https://tidbcloud.com) → *Create Cluster* → **Starter** (gratis).
+2. En el clúster: *Connect* → anota **Host, Port, User** y genera una **Password**. Crea la base de datos `turnos_ganagana`
+   (en *SQL Editor*: `CREATE DATABASE turnos_ganagana;`).
+3. En Render → servicio `turnos-ganagana` → **Environment** agrega:
+   `MYSQL_HOST`, `MYSQL_PORT` (4000), `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE=turnos_ganagana`, `MYSQL_SSL=true`.
+4. Guarda; Render se reinicia solo. En el panel → *Operación del día* debe decir **“Turnos y contador: MySQL (permanente)”**.
+
+### Smart TV
+- Abre `/pantalla` en el navegador del televisor y pulsa **Activar pantalla** con el control remoto.
+- Muchos navegadores de televisor **no traen voz**: si es así, la pantalla lo avisa y los turnos se anuncian con la campanilla
+  y en grande. Para tener voz, conecta al TV un dispositivo con Chrome (Chromecast con Google TV, Fire TV, mini-PC o portátil por HDMI).
+- Desactiva en el televisor el **ahorro de energía / apagado automático** para que no se apague durante la jornada.
