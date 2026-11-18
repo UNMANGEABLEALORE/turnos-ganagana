@@ -11,11 +11,14 @@ function asignarTurno(caja) {
   const turno = cfg.contador;
   cfg.contador = turno + 1;
 
+  // El id nunca retrocede, aunque la depuración de 7 días deje el historial vacío
+  const id = Math.max(cfg.ultimo_id || 0, historial.length ? historial[historial.length - 1].id : 0) + 1;
+  cfg.ultimo_id = id;
+  const ahora = new Date();
   historial.push({
-    id: historial.length > 0 ? historial[historial.length - 1].id + 1 : 1,
-    turno,
-    caja,
-    llamado_en: new Date().toLocaleString('es-CO', { hour12: false })
+    id, turno, caja,
+    llamado_en: ahora.toLocaleString('es-CO', { hour12: false, timeZone: 'America/Bogota' }),
+    ts: ahora.getTime()                              // hora exacta: sirve para depurar a los 7 días
   });
   if (historial.length > 2000) historial.splice(0, historial.length - 2000);    // últimos 2000 turnos: el guardado sigue liviano
   store.guardar();

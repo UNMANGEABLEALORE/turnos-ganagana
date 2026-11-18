@@ -6,11 +6,15 @@
   "scripts": {
     "start": "node index.js",
     "test": "node tests/pruebas.js && node tests/seguridad.js && node tests/operacion.js",
-    "test:navegador": "node tests/navegador.js"
+    "test:navegador": "node tests/navegador.js",
+    "migrar": "node scripts/migrar.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "mysql2": "3.24.6",
+    "pg": "8.23.1",
     "socket.io": "^4.7.4"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.16"
   }
 }

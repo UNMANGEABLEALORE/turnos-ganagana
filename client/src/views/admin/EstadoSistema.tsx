@@ -28,7 +28,7 @@ export default function EstadoSistema() {
         <div className="admin-msg-box admin-msg-box--err">
           ⚠️ <strong>Los turnos NO están en una base de datos permanente.</strong>{' '}
           {s.enRender
-            ? 'Si Render se reinicia durante el día, el contador vuelve a A00 y se pierden el historial y los administradores creados. Configura MySQL (ver guía).'
+            ? 'Si Render se reinicia durante el día, el contador vuelve a A00 y se pierden el historial y los administradores creados. Conecta Supabase (ver guía).'
             : 'Se guardan solo en el archivo de este equipo.'}
         </div>
       )}
@@ -41,7 +41,7 @@ export default function EstadoSistema() {
         </div>
         <div className="sis-item">
           <span className="sis-label">Turnos y contador</span>
-          <strong>{s.turnosPermanentes ? 'MySQL (permanente)' : 'Temporal'}</strong>
+          <strong>{s.turnosPermanentes ? 'Supabase (permanente)' : 'Temporal'}</strong>
           <span className={`sis-badge ${s.turnosPermanentes ? 'sis-ok' : 'sis-warn'}`}>
             {s.turnosPermanentes ? '✔ Sobreviven a reinicios' : '⚠ Se pierden si se reinicia'}
           </span>

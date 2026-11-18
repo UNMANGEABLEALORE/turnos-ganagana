@@ -16,7 +16,7 @@ function estado(req, res) {
     segundosEncendido: Math.round(process.uptime()),
     enRender: !!process.env.RENDER,
     direccion: process.env.RENDER_EXTERNAL_URL || `${proto}://${req.headers.host}`,
-    turnosPermanentes: configModel.dondeSeGuardanTurnos() === 'mysql',
+    turnosPermanentes: configModel.dondeSeGuardanTurnos() === 'postgres',
     almacenamiento: adminModel.dondeSeGuarda(),
     reinicioDiario: configModel.getConfig('reinicio_diario') === true,
     horaReinicio: configModel.getConfig('hora_reinicio') || '06:00',

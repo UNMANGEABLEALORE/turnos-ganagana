@@ -52,7 +52,7 @@ Son 2 600 turnos por ciclo. El botón rojo del admin reinicia a `A00`.
    - **Administradores**: el principal crea o elimina administradores (solo nombres reales).
 
 ## 7. Dónde y cómo se guardan los datos
-No se usa una base de datos como MySQL: se usa **un archivo JSON** (`server/data/store.json`).
+Sin base de datos se usa **un archivo JSON** (`server/data/store.json`). En producción los datos van a **Supabase** (ver sección 12).
 
 ```
 server/data/store.json
@@ -126,17 +126,25 @@ El turnero vive en **Render**: las cajas (PC) y el Smart TV solo necesitan inter
 - Render vuelve a levantar el servicio si se cae (revisa `/api/salud`), y el servidor se mantiene despierto solo.
 - Las cajas y la pantalla se reconectan solas si se corta el internet.
 
-### Base de datos permanente (obligatoria para producción)
-El plan gratis de Render **borra el disco en cada reinicio**. Sin una base de datos externa, un reinicio a mitad del día
-vuelve el contador a A00 (números repetidos) y borra el historial y los administradores creados.
-Con MySQL configurado se guarda todo: contador, historial, configuración, administradores y sesiones.
+### Base de datos permanente: Supabase (obligatoria para producción)
+El plan gratis de Render **borra el disco en cada reinicio**. Con Supabase (Postgres) se guarda todo lo importante:
 
-1. Crea una cuenta gratis en **TiDB Cloud** (https://tidbcloud.com) → *Create Cluster* → **Starter** (gratis).
-2. En el clúster: *Connect* → anota **Host, Port, User** y genera una **Password**. Crea la base de datos `turnos_ganagana`
-   (en *SQL Editor*: `CREATE DATABASE turnos_ganagana;`).
-3. En Render → servicio `turnos-ganagana` → **Environment** agrega:
-   `MYSQL_HOST`, `MYSQL_PORT` (4000), `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE=turnos_ganagana`, `MYSQL_SSL=true`.
-4. Guarda; Render se reinicia solo. En el panel → *Operación del día* debe decir **“Turnos y contador: MySQL (permanente)”**.
+| Tabla | Qué guarda | Se depura |
+|---|---|---|
+| `contador` | El número actual de turno (una sola fila) | **Nunca**: así la numeración sigue al otro día (los turnos son de papel) |
+| `turnos` | Historial de turnos llamados | Solo, pasados **7 días** |
+| `configuracion` | Nombre, volumen, cajas, etc. | No |
+| `administradores` | Usuarios del panel (clave cifrada) | No |
+| `actividad` | Reporte de lo que hace cada administrador | Solo, pasados 90 días |
+
+Las tablas se crean solas al arrancar y tienen **RLS activado**: la API pública de Supabase no puede leerlas.
+
+1. https://supabase.com/dashboard → *New project* (anota la contraseña de la base de datos; mejor solo letras y números).
+2. *Connect* → pestaña **Transaction pooler** → copia la URI (`postgresql://postgres.xxxx:[TU-CLAVE]@...pooler.supabase.com:6543/postgres`) y reemplaza `[TU-CLAVE]`.
+3. Pásala a **Render** → *Environment* → `DATABASE_URL`. Guarda: Render se reinicia solo.
+4. El panel → *Operación del día* debe decir **“Supabase (permanente)”**.
+5. Para llevar los datos de este equipo a Supabase (una sola vez): pon `DATABASE_URL=...` en `credenciales/.env`, ejecuta
+   `npm run migrar --prefix server` y **quita la línea** del `.env` (no corras el turnero local y Render a la vez contra la misma base de datos).
 
 ### Smart TV
 - Abre `/pantalla` en el navegador del televisor y pulsa **Activar pantalla** con el control remoto.

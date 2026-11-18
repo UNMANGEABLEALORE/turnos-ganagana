@@ -10,7 +10,7 @@ const error = (res, status, msg) => res.status(status).json({ ok: false, error: 
 function errorGuardado(res, e) {
   if (e.code === 'DUPLICADO') return error(res, 409, 'Ese usuario ya existe.');
   console.error('Error guardando administrador:', e.code || e.message);
-  return error(res, 503, 'No se pudo guardar: la base de datos no respondió. Revisa que MySQL (XAMPP) esté encendido e inténtalo de nuevo.');
+  return error(res, 503, 'No se pudo guardar: la base de datos no respondió. Inténtalo de nuevo en unos segundos.');
 }
 
 /** GET /api/auth/admins — el principal ve a todos; los demás solo a sí mismos. */

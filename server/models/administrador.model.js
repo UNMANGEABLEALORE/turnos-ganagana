@@ -2,7 +2,7 @@
  * models/administrador.model.js — Administradores del sistema.
  *
  * Dónde se guardan:
- *   · MySQL / MariaDB (tabla `administradores`) si existen las variables MYSQL_*  ← modo principal
+ *   · Postgres / Supabase (tabla `administradores`) si existe DATABASE_URL  ← modo principal
  *   · server/data/store.json si no hay MySQL (por ejemplo en Render sin base de datos)
  * En ambos casos se mantiene una copia en memoria para responder rápido; cada cambio se escribe
  * PRIMERO en la base de datos y solo si se guardó bien se actualiza la memoria.
@@ -15,7 +15,7 @@
  *   3) si no hay nada, se crea el principal con una contraseña aleatoria y se guarda en credenciales/
  */
 const store = require('./store');
-const db    = require('../config/mysql');
+const db    = require('../config/postgres');
 const cred  = require('../config/credenciales');
 const { hashPassword } = require('../utils/sesion');
 const { validarNombreReal, formatearNombre } = require('../utils/validaciones');
@@ -31,7 +31,7 @@ const SUPER_ADMIN = {
 };
 
 let cache = null;          // lista en memoria
-let modo  = 'archivo';     // 'mysql' | 'archivo'
+let modo  = 'archivo';     // 'postgres' | 'archivo'
 
 // ── Semilla (primer arranque) ────────────────────────────────────────────────
 function semilla() {
@@ -80,52 +80,58 @@ function conSuperAdmin(lista) {
   return false;
 }
 
-// ── MySQL: conversión fila ↔ objeto ──────────────────────────────────────────
+// ── Postgres: conversión fila ↔ objeto ───────────────────────────────────────
 const deFila = r => ({
   id: r.id, usuario: r.usuario, nombre: r.nombre, hash: r.clave_hash, rol: r.rol, saludo: r.saludo,
   avatar: r.avatar, principal: !!r.principal, emails: r.email ? [r.email] : [], github: r.github || '',
   debeCambiar: !!r.debe_cambiar
 });
 
-async function insertarFila(pool, a, conId = false) {
+/** Inserta un administrador (consulta parametrizada) y devuelve su id. */
+async function insertarFila(a, conId = false) {
   const cols = ['usuario', 'nombre', 'clave_hash', 'rol', 'saludo', 'avatar', 'principal', 'email', 'github', 'debe_cambiar'];
-  const vals = [a.usuario, a.nombre, a.hash, a.rol, a.saludo, a.avatar, a.principal ? 1 : 0,
-                (a.emails && a.emails[0]) || '', a.github || '', a.debeCambiar ? 1 : 0];
+  const vals = [a.usuario, a.nombre, a.hash, a.rol, a.saludo, a.avatar, !!a.principal,
+                (a.emails && a.emails[0]) || '', a.github || '', !!a.debeCambiar];
   if (conId) { cols.unshift('id'); vals.unshift(a.id); }
-  const [r] = await pool.execute(
-    `INSERT INTO administradores (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`, vals);
-  return r.insertId;
+  const r = await db.consulta(
+    `INSERT INTO administradores (${cols.join(', ')}) VALUES (${cols.map((_, i) => '$' + (i + 1)).join(', ')}) RETURNING id`, vals);
+  return r.rows[0].id;
 }
 
-async function leerTodos(pool) {
-  const [filas] = await pool.query('SELECT * FROM administradores ORDER BY id');
-  return filas.map(deFila);
+async function leerTodos() {
+  const r = await db.consulta('SELECT * FROM administradores ORDER BY id');
+  return r.rows.map(deFila);
 }
+
+/** Después de insertar con id explícito (migración) la secuencia debe seguir desde el mayor. */
+const ajustarSecuencia = () => db.consulta(
+  `SELECT setval(pg_get_serial_sequence('administradores', 'id'), GREATEST((SELECT COALESCE(MAX(id), 0) FROM administradores), 1))`);
 
 // ── Arranque ─────────────────────────────────────────────────────────────────
 /** Se llama una vez al iniciar el servidor. Nunca lanza error: si MySQL falla, se usa el archivo JSON. */
 async function iniciar() {
   if (db.configurado()) {
     try {
-      const pool = await db.conectar();
-      let lista = await leerTodos(pool);
+      await db.conectar();
+      let lista = await leerTodos();
       if (lista.length === 0) {
-        // Primera vez con MySQL: se migran los administradores que ya existían en el archivo JSON
+        // Primera vez con la base de datos: se migran los administradores que ya existían en el archivo JSON
         const previos = store.datos.admins && store.datos.admins.length ? store.datos.admins : semilla();
         conSuperAdmin(previos);
-        for (const a of previos) await insertarFila(pool, a, true);
-        console.log(`🗄️  MySQL: ${previos.length} administradores migrados a la tabla "administradores".`);
-        lista = await leerTodos(pool);
+        for (const a of previos) await insertarFila(a, true);
+        await ajustarSecuencia();
+        console.log(`🗄️  ${previos.length} administradores migrados a la tabla "administradores".`);
+        lista = await leerTodos();
       } else if (conSuperAdmin(lista)) {
-        await insertarFila(pool, lista[lista.length - 1]);
-        lista = await leerTodos(pool);
+        await insertarFila(lista[lista.length - 1]);
+        lista = await leerTodos();
       }
       cache = lista;
-      modo = 'mysql';
-      console.log(`🗄️  Administradores en MySQL (${process.env.MYSQL_DATABASE}): ${lista.length}`);
+      modo = 'postgres';
+      console.log(`🗄️  Administradores en la base de datos: ${lista.length}`);
       return;
     } catch (e) {
-      console.error(`⚠️  No se pudo usar MySQL (${e.code || e.message}). Se usará el archivo JSON.`);
+      console.error(`⚠️  No se pudo usar la base de datos para los administradores (${e.code || e.message}). Se usará el archivo JSON.`);
       await db.cerrar();
     }
   }
@@ -146,7 +152,7 @@ function listar() {
 
 const buscarPorId      = id => listar().find(a => a.id === id) || null;
 const buscarPorUsuario = u  => listar().find(a => a.usuario.toLowerCase() === String(u || '').toLowerCase()) || null;
-const dondeSeGuarda    = () => (modo === 'mysql' ? `la base de datos MySQL (${process.env.MYSQL_DATABASE})` : 'el archivo de datos');
+const dondeSeGuarda    = () => (modo === 'postgres' ? 'la base de datos Supabase' : 'el archivo de datos');
 
 // ── Escritura (primero la base de datos; luego la memoria) ──────────────────
 /** Crea un administrador. Lanza un error con code 'DUPLICADO' si el usuario ya existe. */
@@ -156,14 +162,13 @@ async function crear(datos) {
     const e = new Error('Ese usuario ya existe.'); e.code = 'DUPLICADO'; throw e;
   }
   const nuevo = { emails: [], github: '', debeCambiar: false, principal: false, ...datos };
-  if (modo === 'mysql') {
-    const pool = db.obtener();
-    try { nuevo.id = await insertarFila(pool, nuevo); }
-    catch (e) { if (e.code === 'ER_DUP_ENTRY') { const d = new Error('Ese usuario ya existe.'); d.code = 'DUPLICADO'; throw d; } throw e; }
+  if (modo === 'postgres') {
+    try { nuevo.id = await insertarFila(nuevo); }
+    catch (e) { if (e.code === '23505') { const d = new Error('Ese usuario ya existe.'); d.code = 'DUPLICADO'; throw d; } throw e; }
     // Comprobación: se vuelve a leer de la base de datos lo que quedó guardado
-    const [filas] = await pool.execute('SELECT * FROM administradores WHERE id = ?', [nuevo.id]);
-    if (!filas.length) throw new Error('La base de datos no confirmó el guardado.');
-    const guardado = deFila(filas[0]);
+    const r = await db.consulta('SELECT * FROM administradores WHERE id = $1', [nuevo.id]);
+    if (!r.rows.length) throw new Error('La base de datos no confirmó el guardado.');
+    const guardado = deFila(r.rows[0]);
     lista.push(guardado);
     return guardado;
   }
@@ -175,14 +180,14 @@ async function crear(datos) {
 
 async function eliminar(id) {
   const lista = listar();
-  if (modo === 'mysql') {
-    const [r] = await db.obtener().execute('DELETE FROM administradores WHERE id = ? AND principal = 0', [id]);
-    if (!r.affectedRows) return false;
+  if (modo === 'postgres') {
+    const r = await db.consulta('DELETE FROM administradores WHERE id = $1 AND principal = false', [id]);
+    if (!r.rowCount) return false;
   }
   const i = lista.findIndex(a => a.id === id);
   if (i < 0) return false;
   lista.splice(i, 1);
-  if (modo !== 'mysql') store.guardar();
+  if (modo !== 'postgres') store.guardar();
   return true;
 }
 
@@ -194,13 +199,13 @@ async function actualizar(id, { hash, debeCambiar, emails, github } = {}) {
     hash: hash ?? a.hash, debeCambiar: debeCambiar ?? a.debeCambiar,
     emails: emails ?? a.emails, github: github ?? a.github
   };
-  if (modo === 'mysql') {
-    await db.obtener().execute(
-      'UPDATE administradores SET clave_hash = ?, debe_cambiar = ?, email = ?, github = ? WHERE id = ?',
-      [nuevo.hash, nuevo.debeCambiar ? 1 : 0, (nuevo.emails && nuevo.emails[0]) || '', nuevo.github || '', id]);
+  if (modo === 'postgres') {
+    await db.consulta(
+      'UPDATE administradores SET clave_hash = $1, debe_cambiar = $2, email = $3, github = $4, actualizado_en = now() WHERE id = $5',
+      [nuevo.hash, !!nuevo.debeCambiar, (nuevo.emails && nuevo.emails[0]) || '', nuevo.github || '', id]);
   }
   Object.assign(a, nuevo);
-  if (modo !== 'mysql') store.guardar();
+  if (modo !== 'postgres') store.guardar();
   return a;
 }
 

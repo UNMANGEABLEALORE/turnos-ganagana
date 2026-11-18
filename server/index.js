@@ -51,8 +51,8 @@ async function apagar() {
   io.close();
   server.close();
   setTimeout(() => process.exit(0), 6000).unref();
-  await store.vaciar();                       // termina de guardar en MySQL antes de salir
-  await require('./config/mysql').cerrar();
+  await store.vaciar();                       // termina de guardar en la base de datos antes de salir
+  await require('./config/postgres').cerrar();
   process.exit(0);
 }
 process.on('SIGTERM', apagar);
@@ -71,7 +71,7 @@ server.on('error', e => {
 });
 
 // Arranque en orden:
-//   1) recupera turnos y contador (de MySQL si está configurado; así sobreviven a los reinicios de Render)
+//   1) recupera turnos y contador (de la base de datos si está configurada; así sobreviven a los reinicios de Render)
 //   2) reinicio automático del contador a A00 al empezar cada jornada (por defecto 06:00, hora de Colombia)
 //   3) carga los administradores
 //   4) abre el servidor
@@ -84,7 +84,7 @@ server.on('error', e => {
     console.log(`\n✅ Servidor corriendo en ${esq}://0.0.0.0:${PUERTO}`);
     console.log(`   Pantalla pública:  ${esq}://localhost:${PUERTO}/pantalla`);
     console.log(`   Panel admin:       ${esq}://localhost:${PUERTO}/admin`);
-    console.log(`   Turnos:            ${dondeTurnos === 'mysql' ? 'MySQL (permanente)' : 'archivo local'}`);
+    console.log(`   Turnos:            ${dondeTurnos === 'postgres' ? 'base de datos Supabase (permanente)' : 'archivo local'}`);
     console.log(`   Administradores:   ${adminModel.dondeSeGuarda()}\n`);
   });
 })();

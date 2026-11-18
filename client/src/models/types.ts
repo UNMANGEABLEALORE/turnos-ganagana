@@ -26,7 +26,7 @@ export interface EstadoServidor {
   segundosEncendido: number;
   enRender: boolean;
   direccion: string;
-  turnosPermanentes: boolean;   // true = turnos y contador guardados en MySQL (sobreviven a reinicios)
+  turnosPermanentes: boolean;   // true = turnos y contador guardados en la base de datos (sobreviven a reinicios)
   almacenamiento: string;       // dónde están los administradores
   reinicioDiario: boolean;
   horaReinicio: string;
