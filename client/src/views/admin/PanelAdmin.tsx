@@ -16,6 +16,7 @@ import BienvenidaModal from './BienvenidaModal';
 import TarjetaEstado from './TarjetaEstado';
 import MiCuenta from './MiCuenta';
 import Administradores from './Administradores';
+import EstadoSistema from './EstadoSistema';
 
 // ── PANEL PRINCIPAL ────────────────────────────────────────────────────────────
 export default function PanelAdmin({ admin, onLogout, onActualizar, recienIngresado }: {
@@ -26,6 +27,8 @@ export default function PanelAdmin({ admin, onLogout, onActualizar, recienIngres
   const [nombre,       setNombre]       = useState('');
   const [volumen,      setVolumen]      = useState(1);
   const [silencio,     setSilencio]     = useState(false);
+  const [reinicioDiario, setReinicioDiario] = useState(true);
+  const [horaReinicio,   setHoraReinicio]   = useState('06:00');
   const [msgGuardar,   setMsgGuardar]   = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
   const [msgReset,     setMsgReset]     = useState('');
@@ -56,6 +59,8 @@ export default function PanelAdmin({ admin, onLogout, onActualizar, recienIngres
     setNombre(config.establecimiento || '');
     setVolumen(config.volumen ?? 1);
     setSilencio(config.silencio ?? false);
+    setReinicioDiario(config.reinicioDiario ?? true);
+    setHoraReinicio(config.horaReinicio || '06:00');
   }, [config]);
 
   useEffect(() => {
@@ -73,9 +78,11 @@ export default function PanelAdmin({ admin, onLogout, onActualizar, recienIngres
   async function guardarConfig() {
     const err = primerError(validarEstablecimiento(nombre), validarVolumen(volumen));
     if (err) { setMsgGuardar(`⚠️ ${err}`); return; }
-    const res = await api('/api/config', { method: 'POST', body: { establecimiento: nombre, volumen, silencio } });
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(horaReinicio)) { setMsgGuardar('⚠️ La hora de reinicio no es válida.'); return; }
+    const res = await api('/api/config', { method: 'POST', body: { establecimiento: nombre, volumen, silencio, reinicioDiario, horaReinicio } });
     if (res.status === 401) return onLogout();
     if (res.ok) { setMsgGuardar('✅ Guardado con éxito'); setTimeout(() => setMsgGuardar(''), 3000); }
+    else setMsgGuardar(`⚠️ ${res.data.error || 'No se pudo guardar.'}`);
   }
 
   async function reiniciar() {
@@ -163,6 +170,8 @@ export default function PanelAdmin({ admin, onLogout, onActualizar, recienIngres
           </div>
         )}
 
+        <EstadoSistema />
+
         <MiCuenta admin={admin} onActualizar={onActualizar} />
 
         {/* Dashboard */}
@@ -219,7 +228,7 @@ export default function PanelAdmin({ admin, onLogout, onActualizar, recienIngres
             <div>
               <h2 style={{ marginBottom: 6 }}>Reiniciar contador</h2>
               <p className="admin-warn-txt">
-                Vuelve la numeración a A00. Solo al inicio de la jornada.<br />
+                Vuelve la numeración a A00 ahora mismo{reinicioDiario ? ` (además se hace solo cada día a las ${horaReinicio})` : ''}.<br />
                 Atajo: <kbd>Ctrl + Shift + R</kbd>
               </p>
               {msgReset && <p className="admin-msg">{msgReset}</p>}
@@ -264,28 +273,19 @@ export default function PanelAdmin({ admin, onLogout, onActualizar, recienIngres
               &nbsp; Silenciar alerta sonora
             </label>
           </div>
+          <div className="form-group check-row">
+            <label>
+              <input type="checkbox" checked={reinicioDiario}
+                onChange={e => setReinicioDiario(e.target.checked)} />
+              &nbsp; Reiniciar el contador a A00 automáticamente cada día a las
+              &nbsp;<input type="time" value={horaReinicio} disabled={!reinicioDiario}
+                onChange={e => setHoraReinicio(e.target.value)} style={{ width: 'auto' }} />
+              &nbsp;(hora de Colombia)
+            </label>
+          </div>
           <button className="btn-gg-primary" onClick={guardarConfig}>💾 Guardar cambios</button>
           &nbsp;<button className="btn btn-sky" onClick={probarVoz}>🔊 Probar voz (A22, caja 2)</button>
           {msgGuardar && <p className="admin-msg">{msgGuardar}</p>}
-        </section>
-
-        {/* URLs */}
-        <section className="card admin-section">
-          <h2>URLs de acceso</h2>
-          <div className="admin-urls">
-            {[1,2,3,4].map(c => (
-              <div key={c} className="admin-url-row">
-                <span className="admin-url-label">🖥️ Caja {c}</span>
-                <code className="admin-url-code">
-                  {`${window.location.origin}/caja/${c}`}
-                </code>
-              </div>
-            ))}
-            <div className="admin-url-row">
-              <span className="admin-url-label">📺 Pantalla pública</span>
-              <code className="admin-url-code">{`${window.location.origin}/pantalla`}</code>
-            </div>
-          </div>
         </section>
 
         <Administradores admin={admin} />

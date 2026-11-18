@@ -9,6 +9,7 @@ const app = require('./app');
 const tiempoReal = require('./services/tiempoReal.service');
 const socketController = require('./controllers/socket.controller');
 const adminModel = require('./models/administrador.model');
+const store = require('./models/store');
 
 // HTTPS directo si hay certificados; si no, HTTP (Render ya aporta HTTPS)
 const usaHttps = fs.existsSync(CERT_KEY) && fs.existsSync(CERT_CRT);
@@ -45,12 +46,14 @@ process.on('uncaughtException',  e => console.error('Excepción no controlada:',
 process.on('unhandledRejection', e => console.error('Promesa rechazada sin manejar:', e));
 
 // Apagado ordenado (Render envía SIGTERM al reiniciar o desplegar)
-function apagar() {
+async function apagar() {
   console.log('Apagando el servidor…');
   io.close();
-  require('./config/mysql').cerrar();
-  server.close(() => process.exit(0));
-  setTimeout(() => process.exit(0), 4000).unref();
+  server.close();
+  setTimeout(() => process.exit(0), 6000).unref();
+  await store.vaciar();                       // termina de guardar en MySQL antes de salir
+  await require('./config/mysql').cerrar();
+  process.exit(0);
 }
 process.on('SIGTERM', apagar);
 process.on('SIGINT',  apagar);
@@ -61,11 +64,27 @@ if (process.env.RENDER_EXTERNAL_URL) {
   setInterval(() => { fetch(process.env.RENDER_EXTERNAL_URL + '/api/estado').catch(() => {}); }, 10 * 60_000).unref();
 }
 
-// Carga los administradores (MySQL si está configurado; si no, el archivo JSON) y luego abre el servidor
-adminModel.iniciar().then(() => server.listen(PUERTO, '0.0.0.0', () => {
-  const esq = usaHttps ? 'https' : 'http';
-  console.log(`\n✅ Servidor corriendo en ${esq}://0.0.0.0:${PUERTO}`);
-  console.log(`   Pantalla pública:  ${esq}://localhost:${PUERTO}/pantalla`);
-  console.log(`   Panel admin:       ${esq}://localhost:${PUERTO}/admin`);
-  console.log(`   Administradores:   ${adminModel.dondeSeGuarda()}\n`);
-}));
+// Si el puerto está ocupado (otro servidor ya corre) se sale con error, para que el supervisor lo sepa
+server.on('error', e => {
+  console.error(e.code === 'EADDRINUSE' ? `❌ El puerto ${PUERTO} ya está en uso: ¿hay otro turnero abierto?` : `❌ Error del servidor: ${e.message}`);
+  process.exit(1);
+});
+
+// Arranque en orden:
+//   1) recupera turnos y contador (de MySQL si está configurado; así sobreviven a los reinicios de Render)
+//   2) reinicio automático del contador a A00 al empezar cada jornada (por defecto 06:00, hora de Colombia)
+//   3) carga los administradores
+//   4) abre el servidor
+(async () => {
+  const dondeTurnos = await store.iniciar();
+  require('./services/jornada.service').iniciar();
+  await adminModel.iniciar();
+  server.listen(PUERTO, '0.0.0.0', () => {
+    const esq = usaHttps ? 'https' : 'http';
+    console.log(`\n✅ Servidor corriendo en ${esq}://0.0.0.0:${PUERTO}`);
+    console.log(`   Pantalla pública:  ${esq}://localhost:${PUERTO}/pantalla`);
+    console.log(`   Panel admin:       ${esq}://localhost:${PUERTO}/admin`);
+    console.log(`   Turnos:            ${dondeTurnos === 'mysql' ? 'MySQL (permanente)' : 'archivo local'}`);
+    console.log(`   Administradores:   ${adminModel.dondeSeGuarda()}\n`);
+  });
+})();

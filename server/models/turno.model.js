@@ -17,7 +17,7 @@ function asignarTurno(caja) {
     caja,
     llamado_en: new Date().toLocaleString('es-CO', { hour12: false })
   });
-  if (historial.length > 20000) historial.splice(0, historial.length - 20000);   // el archivo no crece sin fin
+  if (historial.length > 2000) historial.splice(0, historial.length - 2000);    // últimos 2000 turnos: el guardado sigue liviano
   store.guardar();
   return { turno, caja };
 }

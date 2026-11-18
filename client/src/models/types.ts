@@ -17,6 +17,21 @@ export interface ConfigSistema {
   establecimiento: string;
   volumen: number;     // 0..1
   silencio: boolean;
+  reinicioDiario?: boolean;   // el contador vuelve a A00 cada mañana
+  horaReinicio?: string;      // "HH:MM", hora de Colombia
+}
+
+export interface EstadoServidor {
+  encendidoDesde: string;
+  segundosEncendido: number;
+  enRender: boolean;
+  direccion: string;
+  turnosPermanentes: boolean;   // true = turnos y contador guardados en MySQL (sobreviven a reinicios)
+  almacenamiento: string;       // dónde están los administradores
+  reinicioDiario: boolean;
+  horaReinicio: string;
+  ultimoReinicio: string | null;
+  horaColombia: string;
 }
 
 export interface PresenciaItem { conectada: boolean; falla: boolean; detalle: string; }

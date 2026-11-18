@@ -59,6 +59,12 @@ export default function DisplayPage() {
 
   useEffect(() => { avisarSiSeBloquea(() => setVozBloqueada(true)); return () => avisarSiSeBloquea(null); }, []);
 
+  // /pantalla?auto=1 → se activa sola (la abre scripts/abrir-pantalla.bat en modo kiosko con permiso de sonido).
+  // Si el navegador aun así bloquea la voz, aparece el botón rojo para activarla con un toque.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('auto') === '1') activar();
+  }, []);
+
   // Detectar nuevo turno y animar + sonar
   useEffect(() => {
     if (!actual) return;
@@ -82,6 +88,7 @@ export default function DisplayPage() {
   }
 
   const [vozTxt, setVozTxt] = useState({ ok: true, texto: '' });
+  const [sinVoz, setSinVoz] = useState(false);
   const [voces, setVoces] = useState<string[]>([]);
   const [vozSel, setVozSel] = useState<string>(localStorage.getItem('gg_voz_latam') || '');
   useEffect(() => {
@@ -89,7 +96,12 @@ export default function DisplayPage() {
     const refrescar = () => { setVozTxt(infoVoz()); setVoces(listarVoces().map(v => v.name)); };
     refrescar();
     const t = setInterval(refrescar, 2000);     // las voces cargan de forma asíncrona
-    return () => clearInterval(t);
+    // Smart TV: muchos navegadores de televisor no traen voces. Si a los 6 s no hay ninguna, se avisa en pantalla.
+    const aviso = setTimeout(() => {
+      const sinSoporte = !('speechSynthesis' in window) || window.speechSynthesis.getVoices().length === 0;
+      setSinVoz(sinSoporte);
+    }, 6000);
+    return () => { clearInterval(t); clearTimeout(aviso); };
   }, [activado]);
 
   function activar() {
@@ -159,6 +171,11 @@ export default function DisplayPage() {
 
   return (
     <div className="dp-screen">
+      {sinVoz && (
+        <div className="dp-voz-bloqueada dp-sin-voz" role="status">
+          🔈 El navegador de este televisor no tiene voz: los turnos se anunciarán solo con la campanilla y en pantalla.
+        </div>
+      )}
       {vozBloqueada && (
         <button className="dp-voz-bloqueada" onClick={() => { activar(); anunciar({ turno: actual?.turno ?? 22, caja: actual?.caja ?? 2 }); }}>
           🔇 El navegador bloqueó la voz. Toca aquí para volver a activarla

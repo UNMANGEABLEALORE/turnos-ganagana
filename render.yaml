@@ -8,9 +8,25 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: TZ_TURNERO
+        value: America/Bogota          # el reinicio diario a A00 usa la hora de Colombia
       - key: SESSION_SECRET
         generateValue: true
-      # Completar en el panel de Render (sync: false = no se guarda en el repo)
+      # ── Base de datos permanente (TiDB Cloud Starter u otro MySQL) ──────────
+      # Sin esto, cada reinicio de Render borra turnos, contador y administradores.
+      - key: MYSQL_HOST
+        sync: false
+      - key: MYSQL_PORT
+        sync: false
+      - key: MYSQL_USER
+        sync: false
+      - key: MYSQL_PASSWORD
+        sync: false
+      - key: MYSQL_DATABASE
+        sync: false
+      - key: MYSQL_SSL
+        value: "true"
+      # ── Completar en el panel de Render (sync: false = no se guarda en el repo) ──
       - key: PUBLIC_URL
         sync: false
       - key: HCAPTCHA_SITEKEY
@@ -27,4 +43,4 @@ services:
         sync: false
       - key: ADMIN_PRINCIPAL_PASSWORD
         sync: false
-    healthCheckPath: /api/estado
+    healthCheckPath: /api/salud

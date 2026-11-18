@@ -662,3 +662,16 @@
 .admin-msg-box--ok   { background: #d4f5e9; color: #0f5132; border: 1px solid #8fd9b6; }
 .admin-msg-box--err  { background: #fde8e8; color: #9b1c1c; border: 1px solid #f4b4b4; }
 .admin-msg-box--info { background: #fff7c2; color: #5c5300; border: 1px solid #F8E704; }
+
+/* Operación del día */
+.sis-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0.9rem; margin-bottom: 1rem; }
+.sis-item { background: #f4f9ea; border: 1px solid #d7e6c8; border-radius: 0.7rem; padding: 0.8rem 1rem; display: flex; flex-direction: column; gap: 0.25rem; }
+.sis-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: #5a6b62; font-weight: 700; }
+.sis-item strong { color: #1A382D; font-size: 0.95rem; }
+.sis-sub { font-size: 0.78rem; color: #6b6b7e; }
+.sis-badge { font-size: 0.75rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 1rem; align-self: flex-start; }
+.sis-ok   { background: #d4f5e9; color: #0f5132; }
+.sis-warn { background: #fff7c2; color: #5c5300; }
+.sis-h3 { color: #016630; margin: 1rem 0 0.4rem; font-size: 0.95rem; }
+.sis-eventos { list-style: none; margin: 0; padding: 0.6rem 0.8rem; background: #1A382D; color: #e8f2ea; border-radius: 0.6rem;
+  font-family: 'Courier New', monospace; font-size: 0.75rem; line-height: 1.6; max-height: 14rem; overflow-y: auto; }

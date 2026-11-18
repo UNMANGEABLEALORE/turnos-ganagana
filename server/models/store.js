@@ -81,7 +81,84 @@ function cargar() {
 
 const datos = cargar();
 
-/** Guarda en disco el estado actual de `datos`. */
-function guardar() { escribir(datos); }
+// ── Copia permanente en MySQL ────────────────────────────────────────────────
+// En Render (plan gratis) el disco se BORRA en cada reinicio. Si hay MySQL configurado, todo el estado
+// (contador, historial, configuración) se guarda también en la tabla `almacen` y se recupera al arrancar.
+// Las escrituras se agrupan: si llegan varias seguidas, solo se envía la última (nunca se acumulan).
+const db = require('../config/mysql');
+let enMysql = false, pendiente = false, escribiendo = null;
 
-module.exports = { datos, guardar, STORE_PATH };
+const TABLA = `CREATE TABLE IF NOT EXISTS almacen (
+  id INT NOT NULL PRIMARY KEY, datos LONGTEXT NOT NULL,
+  actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`;
+
+/** Reemplaza el contenido de `datos` SIN cambiar el objeto (los demás módulos guardan la referencia). */
+function reemplazar(nuevos) {
+  for (const k of Object.keys(datos)) delete datos[k];
+  Object.assign(datos, nuevos);
+}
+
+/** Al arrancar: si hay MySQL, recupera de ahí el último estado (o sube el actual la primera vez). */
+async function iniciar() {
+  if (!db.configurado()) return 'archivo';
+  try {
+    const pool = await db.conectar();
+    await pool.query(TABLA);
+    const [filas] = await pool.query('SELECT datos FROM almacen WHERE id = 1');
+    const guardado = filas.length ? leerTexto(filas[0].datos) : null;
+    if (guardado) {
+      reemplazar(guardado);
+      escribir(datos);                                  // copia local al día
+      console.log(`🗄️  Turnos recuperados de MySQL: contador ${datos.config.contador}, ${datos.historial.length} en historial.`);
+    } else {
+      await pool.execute('REPLACE INTO almacen (id, datos) VALUES (1, ?)', [JSON.stringify(datos)]);
+      console.log('🗄️  Turnos guardados por primera vez en MySQL (tabla "almacen").');
+    }
+    enMysql = true;
+    return 'mysql';
+  } catch (e) {
+    console.error(`⚠️  No se pudo usar MySQL para los turnos (${e.code || e.message}). Se usa solo el archivo.`);
+    return 'archivo';
+  }
+}
+
+function leerTexto(texto) {
+  try {
+    const s = JSON.parse(texto);
+    return s && s.config && typeof s.config.contador === 'number' && Array.isArray(s.historial) ? s : null;
+  } catch { return null; }
+}
+
+function subirAMysql() {
+  if (!enMysql) return Promise.resolve();
+  pendiente = true;
+  if (escribiendo) return escribiendo;
+  escribiendo = (async () => {
+    while (pendiente) {
+      pendiente = false;
+      try {
+        await db.obtener().execute('REPLACE INTO almacen (id, datos) VALUES (1, ?)', [JSON.stringify(datos)]);
+      } catch (e) {
+        console.error('⚠️  No se pudo guardar en MySQL (se reintenta):', e.code || e.message);
+        pendiente = true;
+        await new Promise(r => setTimeout(r, 3000));
+      }
+    }
+    escribiendo = null;
+  })();
+  return escribiendo;
+}
+
+/** Guarda el estado actual: en disco al instante y en MySQL (si está configurado) enseguida. */
+function guardar() { escribir(datos); subirAMysql(); }
+
+/** Espera a que terminen las escrituras pendientes en MySQL (se usa al apagar). */
+async function vaciar(maxMs = 5000) {
+  if (!escribiendo) return;
+  await Promise.race([escribiendo, new Promise(r => setTimeout(r, maxMs))]);
+}
+
+const dondeGuarda = () => (enMysql ? 'mysql' : 'archivo');
+
+module.exports = { datos, guardar, iniciar, vaciar, dondeGuarda, STORE_PATH };

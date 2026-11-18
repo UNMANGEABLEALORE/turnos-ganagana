@@ -15,7 +15,9 @@ function getConfigPublica() {
   return {
     establecimiento: getConfig('establecimiento'),
     volumen:         parseFloat(getConfig('volumen')),
-    silencio:        getConfig('silencio') === true || getConfig('silencio') === 'true'
+    silencio:        getConfig('silencio') === true || getConfig('silencio') === 'true',
+    reinicioDiario:  getConfig('reinicio_diario') !== false,          // por defecto: sí
+    horaReinicio:    getConfig('hora_reinicio') || '06:00'
   };
 }
 
@@ -29,8 +31,12 @@ function setCajaEstado(caja, estado) {
 
 // ── Clave para firmar sesiones ───────────────────────────────────────────────
 function getSessionSecret() {
-  const deCredenciales = cred.claveSesion();         // variable de entorno o credenciales/sesion.secret
-  if (deCredenciales) return deCredenciales;
+  if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
+  // En Render el disco se borra al reiniciar: la clave va en el almacén (que se copia a MySQL) para no cerrar sesiones
+  if (!process.env.RENDER) {
+    const deCredenciales = cred.claveSesion();       // credenciales/sesion.secret (equipo local)
+    if (deCredenciales) return deCredenciales;
+  }
   if (!store.datos.sessionSecret) {                  // último recurso: se guarda en el almacén
     store.datos.sessionSecret = crypto.randomBytes(48).toString('hex');
     store.guardar();
@@ -38,4 +44,7 @@ function getSessionSecret() {
   return store.datos.sessionSecret;
 }
 
-module.exports = { getConfig, setConfig, getConfigPublica, getCajasEstado, setCajaEstado, getSessionSecret };
+/** 'mysql' si turnos y contador tienen copia permanente en MySQL; 'archivo' si solo están en disco. */
+const dondeSeGuardanTurnos = () => store.dondeGuarda();
+
+module.exports = { getConfig, setConfig, getConfigPublica, getCajasEstado, setCajaEstado, getSessionSecret, dondeSeGuardanTurnos };

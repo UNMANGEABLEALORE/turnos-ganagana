@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "test": "node tests/pruebas.js && node tests/seguridad.js",
+    "test": "node tests/pruebas.js && node tests/seguridad.js && node tests/operacion.js",
     "test:navegador": "node tests/navegador.js"
   },
   "dependencies": {

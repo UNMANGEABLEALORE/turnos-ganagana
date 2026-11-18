@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server/index.js",
     "build": "npm install --prefix client && npm run build --prefix client",
-    "test": "node server/tests/pruebas.js && node server/tests/seguridad.js"
+    "test": "node server/tests/pruebas.js && node server/tests/seguridad.js && node server/tests/operacion.js"
   },
   "dependencies": {
     "express": "^4.18.2",

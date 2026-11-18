@@ -45,7 +45,10 @@ async function conectar() {
     waitForConnections: true,
     connectionLimit: 5,
     connectTimeout: 8000,
-    ssl: process.env.MYSQL_SSL === 'true' ? { rejectUnauthorized: true } : undefined   // para MySQL en la nube
+    // MySQL en la nube (TiDB Cloud, etc.): conexión cifrada y verificada. MYSQL_SSL_CA solo si el proveedor da su propio certificado.
+    ssl: process.env.MYSQL_SSL === 'true'
+      ? { rejectUnauthorized: true, minVersion: 'TLSv1.2', ...(process.env.MYSQL_SSL_CA ? { ca: process.env.MYSQL_SSL_CA.replace(/\\n/g, '\n') } : {}) }
+      : undefined
   });
   await pool.query(ESQUEMA);
   return pool;
