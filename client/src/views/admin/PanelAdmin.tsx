@@ -27,7 +27,7 @@ export default function PanelAdmin({ admin, onLogout, onActualizar, recienIngres
   const [nombre,       setNombre]       = useState('');
   const [volumen,      setVolumen]      = useState(1);
   const [silencio,     setSilencio]     = useState(false);
-  const [reinicioDiario, setReinicioDiario] = useState(true);
+  const [reinicioDiario, setReinicioDiario] = useState(false);
   const [horaReinicio,   setHoraReinicio]   = useState('06:00');
   const [msgGuardar,   setMsgGuardar]   = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
@@ -59,7 +59,7 @@ export default function PanelAdmin({ admin, onLogout, onActualizar, recienIngres
     setNombre(config.establecimiento || '');
     setVolumen(config.volumen ?? 1);
     setSilencio(config.silencio ?? false);
-    setReinicioDiario(config.reinicioDiario ?? true);
+    setReinicioDiario(config.reinicioDiario ?? false);
     setHoraReinicio(config.horaReinicio || '06:00');
   }, [config]);
 

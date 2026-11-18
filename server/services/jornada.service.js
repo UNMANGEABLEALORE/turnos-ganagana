@@ -30,7 +30,7 @@ function revisar() {
   // Primera vez con esta función: se marca hoy SIN reiniciar (no se borra el contador de quien ya trabaja)
   if (!ultimo) { configModel.setConfig('ultimo_reinicio', fecha); return false; }
 
-  if (configModel.getConfig('reinicio_diario') === false) return false;
+  if (configModel.getConfig('reinicio_diario') !== true) return false;      // por defecto apagado: la numeración continúa al otro día
   const horaReinicio = configModel.getConfig('hora_reinicio') || '06:00';
   if (ultimo === fecha || hora < horaReinicio) return false;
 

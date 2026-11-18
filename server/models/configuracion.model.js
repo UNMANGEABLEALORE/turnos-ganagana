@@ -16,7 +16,7 @@ function getConfigPublica() {
     establecimiento: getConfig('establecimiento'),
     volumen:         parseFloat(getConfig('volumen')),
     silencio:        getConfig('silencio') === true || getConfig('silencio') === 'true',
-    reinicioDiario:  getConfig('reinicio_diario') !== false,          // por defecto: sí
+    reinicioDiario:  getConfig('reinicio_diario') === true,           // por defecto: NO (los turnos son de papel y siguen al otro día)
     horaReinicio:    getConfig('hora_reinicio') || '06:00'
   };
 }

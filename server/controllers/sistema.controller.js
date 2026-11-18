@@ -18,7 +18,7 @@ function estado(req, res) {
     direccion: process.env.RENDER_EXTERNAL_URL || `${proto}://${req.headers.host}`,
     turnosPermanentes: configModel.dondeSeGuardanTurnos() === 'mysql',
     almacenamiento: adminModel.dondeSeGuarda(),
-    reinicioDiario: configModel.getConfig('reinicio_diario') !== false,
+    reinicioDiario: configModel.getConfig('reinicio_diario') === true,
     horaReinicio: configModel.getConfig('hora_reinicio') || '06:00',
     ultimoReinicio: configModel.getConfig('ultimo_reinicio') || null,
     horaColombia: ahoraLocal().hora

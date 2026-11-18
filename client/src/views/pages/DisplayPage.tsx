@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSocket } from '../../controllers/useSocket';
 import { formatTurno } from '../../models/formato';
-import { hablarTurno, infoVoz, listarVoces, elegirVozManual, avisarSiSeBloquea } from '../../controllers/voz';
+import { encolarLlamado, alIniciarSerie, infoVoz, listarVoces, elegirVozManual, avisarSiSeBloquea } from '../../controllers/voz';
 import type { TurnoLlamado } from '../../models/types';
 import './DisplayPage.css';
 
@@ -13,7 +13,11 @@ const CAJA_COLORES: Record<number, string> = {
 };
 
 export default function DisplayPage() {
-  const { connected, estado, config } = useSocket({ tipo: 'pantalla' });
+  // Cada turno que llega se pone en la fila de anuncios (aunque lleguen dos seguidos). Lo que ya estaba en pantalla al abrir NO se anuncia.
+  const { connected, estado, config } = useSocket({
+    tipo: 'pantalla',
+    alNuevoTurno: t => { if (activadoRef.current) anunciar(t); }
+  });
 
   // Audio
   const audioCtx   = useRef<AudioContext | null>(null);
@@ -65,26 +69,27 @@ export default function DisplayPage() {
     if (new URLSearchParams(window.location.search).get('auto') === '1') activar();
   }, []);
 
-  // Detectar nuevo turno y animar + sonar
+  // Animación y parpadeo cuando cambia el turno en pantalla
   useEffect(() => {
     if (!actual) return;
     const id = `${actual.turno}-${actual.caja}`;
-    if (id !== ultimoIdRef.current) {
-      ultimoIdRef.current = id;
-      setAnimKey(k => k + 1);
-      // El turno que ya estaba en pantalla al abrir NO se anuncia (el navegador bloquearía la voz)
-      if (activadoRef.current) anunciar(actual);
-    }
+    if (id !== ultimoIdRef.current) { ultimoIdRef.current = id; setAnimKey(k => k + 1); }
   }, [actual]);
 
-  // Llama por voz; si el navegador no tiene voz en español, usa la campanilla de respaldo
-  // Primero suena la campanilla y enseguida la voz ("Turno a, veintidós. Diríjase a la caja número 2")
+  // La campanilla suena UNA vez al empezar una serie de anuncios; luego la voz dice cada turno en orden
+  useEffect(() => {
+    alIniciarSerie(() => {
+      if (silencioRef.current) return;
+      playDing();
+      return new Promise<void>(r => setTimeout(r, 1000));
+    });
+    return () => alIniciarSerie(null);
+  }, []);
+
+  // Pone el turno en la fila de voz: "Turno A diez. Diríjase a la caja número uno." (máximo 2 veces cada uno)
   function anunciar(t: TurnoLlamado) {
     if (silencioRef.current) return;
-    playDing();
-    setTimeout(() => {
-      hablarTurno(t.turno, t.caja, { volumen: volumenRef.current, repeticiones: 2 });
-    }, 1000);
+    encolarLlamado(t.turno, t.caja, 2);
   }
 
   const [vozTxt, setVozTxt] = useState({ ok: true, texto: '' });

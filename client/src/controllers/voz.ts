@@ -32,7 +32,9 @@ export function partesVoz(turno: number | string, caja: number | string): string
   const num = parseInt(String(turno), 10);
   const letra = String.fromCharCode(65 + (Math.floor(num / 100) % 26));
   const numTxt = numeroEnPalabras(num % 100);
-  return [`Turno ${NOMBRE_LETRA[letra]} ${numTxt}. Diríjase a la caja número ${UNIDADES[Number(caja)] ?? caja}.`];
+  const c = Number(caja);
+  const cajaTxt = c >= 10 && c < 100 ? numeroEnPalabras(c) : (UNIDADES[c] ?? String(caja));
+  return [`Turno ${NOMBRE_LETRA[letra]} ${numTxt}. Diríjase a la caja número ${cajaTxt}.`];
 }
 
 export function textoVoz(turno: number | string, caja: number | string): string {
@@ -98,9 +100,6 @@ const enCurso: SpeechSynthesisUtterance[] = [];
 let alBloqueo: (() => void) | null = null;
 export function avisarSiSeBloquea(fn: (() => void) | null): void { alBloqueo = fn; }
 
-/** Identificador del llamado actual: un llamado nuevo anula lo pendiente del anterior (sin repeticiones de más). */
-let llamadoActual = 0;
-
 function decir(texto: string, voz: SpeechSynthesisVoice | null, alEmpezar: () => void,
                alTerminar: () => void, alFallar: (bloqueado: boolean) => void): void {
   const u = new SpeechSynthesisUtterance(texto);
@@ -112,7 +111,7 @@ function decir(texto: string, voz: SpeechSynthesisVoice | null, alEmpezar: () =>
   u.onend = () => { const k = enCurso.indexOf(u); if (k >= 0) enCurso.splice(k, 1); alTerminar(); };
   u.onerror = e => {
     const k = enCurso.indexOf(u); if (k >= 0) enCurso.splice(k, 1);
-    if (e.error === 'interrupted' || e.error === 'canceled') return;   // lo cortó un llamado nuevo
+    if (e.error === 'interrupted' || e.error === 'canceled') return;   // lo cortamos nosotros al cambiar de voz
     console.warn('Voz:', e.error);
     alFallar(e.error === 'not-allowed');
   };
@@ -120,53 +119,102 @@ function decir(texto: string, voz: SpeechSynthesisVoice | null, alEmpezar: () =>
   window.speechSynthesis.speak(u);
 }
 
+const siguienteVoz = (probadas: Set<string>) =>
+  listarVoces().find(v => !probadas.has(v.name) && (v.localService || !esEspana(v)))
+  || listarVoces().find(v => !probadas.has(v.name)) || null;
+
 /**
- * Anuncia el turno, como máximo `repeticiones` veces (por defecto 2).
- * Si la voz elegida no arranca en 6 s (voz "Online" sin red), se usa otra voz latinoamericana o la instalada.
+ * Dice UNA vez el turno y avisa con `fin` cuando termina (o cuando se rinde).
+ * Si la voz elegida no arranca en 6 s (voz "Online" sin red) prueba otra; si pasan 20 s sin terminar, sigue con el siguiente.
+ */
+function decirTurno(turno: number | string, caja: number | string, fin: () => void): void {
+  vozElegida = vozElegida || elegirVoz();
+  const texto = textoVoz(turno, caja);
+  const probadas = new Set<string>();
+  let voz = vozElegida;
+  let terminado = false;
+  const tope = setTimeout(() => { window.speechSynthesis.cancel(); cerrar(); }, 20000);
+  const cerrar = () => { if (terminado) return; terminado = true; clearTimeout(tope); fin(); };
+
+  const intentar = () => {
+    if (voz) probadas.add(voz.name);
+    let empezo = false, cerrado = false;
+    const otraVoz = () => {
+      if (cerrado) return;
+      cerrado = true; window.speechSynthesis.cancel();
+      voz = siguienteVoz(probadas);
+      if (voz && probadas.size < 4) intentar(); else cerrar();
+    };
+    let prorrogado = false;
+    let vigilante: ReturnType<typeof setTimeout> = setTimeout(function revisar() {
+      if (empezo) return;
+      // Si la voz ya está "hablando" pero aún no avisó que empezó (voz Online cargando), se le dan 8 s más antes de cambiarla
+      if (window.speechSynthesis.speaking && !prorrogado) { prorrogado = true; vigilante = setTimeout(revisar, 8000); return; }
+      otraVoz();
+    }, 6000);
+    decir(texto, voz,
+      () => { empezo = true; clearTimeout(vigilante); },
+      () => { clearTimeout(vigilante); if (cerrado) return; cerrado = true; cerrar(); },
+      (bloqueado) => {
+        clearTimeout(vigilante);
+        if (bloqueado) { cerrado = true; cola.length = 0; alBloqueo?.(); cerrar(); } else otraVoz();
+      });
+  };
+  intentar();
+}
+
+// ── Fila de anuncios ─────────────────────────────────────────────────────────
+// Cada turno que llega se anuncia COMPLETO y en orden; nunca se corta uno para decir otro.
+// Cada turno se dice como máximo 2 veces. La repetición se pone al final de la fila, así que si hay
+// varios esperando, primero se dicen todos y después se repiten:  A10, A11, A10, A11.
+interface Anuncio { turno: number | string; caja: number | string; veces: number; }
+const cola: Anuncio[] = [];
+let hablando = false;
+const PAUSA_ENTRE_MS = 900;
+const MAX_EN_FILA = 10;
+let antesDeSerie: (() => void | Promise<void>) | null = null;
+
+/** Algo que se hace antes de empezar a hablar cuando la fila estaba vacía (por ejemplo, la campanilla). */
+export function alIniciarSerie(fn: (() => void | Promise<void>) | null): void { antesDeSerie = fn; }
+
+/** true si hay un anuncio en curso o esperando. */
+export const hayAnunciosPendientes = (): boolean => hablando || cola.length > 0;
+
+function siguienteDeLaFila(): void {
+  const a = cola.shift();
+  if (!a) { hablando = false; return; }
+  decirTurno(a.turno, a.caja, () => {
+    a.veces -= 1;
+    if (a.veces > 0) cola.push(a);                       // su repetición va al final de la fila
+    setTimeout(siguienteDeLaFila, PAUSA_ENTRE_MS);
+  });
+}
+
+/**
+ * Pone un turno en la fila de anuncios (se dice `veces` veces, máximo 2).
  * Devuelve false solo si el navegador no tiene síntesis de voz.
  */
+export function encolarLlamado(turno: number | string, caja: number | string, veces = 2): boolean {
+  if (!vozDisponible()) return false;
+  cola.push({ turno, caja, veces: Math.max(1, Math.min(2, veces)) });
+  if (cola.length > MAX_EN_FILA) {                        // fila exagerada: se descartan primero las repeticiones viejas
+    const r = cola.findIndex(x => x.veces < 2);
+    cola.splice(r >= 0 ? r : 0, 1);
+  }
+  if (!hablando) {
+    hablando = true;
+    const synth = window.speechSynthesis;
+    synth.cancel();                                       // limpia frases atascadas de antes
+    if (synth.paused) synth.resume();
+    Promise.resolve(antesDeSerie ? antesDeSerie() : undefined).catch(() => {}).then(siguienteDeLaFila);
+  }
+  return true;
+}
+
+/** Anuncio suelto (botón "Probar voz"). Usa la misma fila. */
 export function hablarTurno(
   turno: number | string, caja: number | string,
   { repeticiones = 2 }: { volumen?: number; repeticiones?: number } = {}
 ): boolean {
-  if (!vozDisponible()) return false;
-  const synth = window.speechSynthesis;
-  const yo = ++llamadoActual;
-  synth.cancel();                       // corta cualquier llamado anterior: nunca se acumulan
-  if (synth.paused) synth.resume();
-
-  vozElegida = vozElegida || elegirVoz();
-  const texto = textoVoz(turno, caja);
-  const total = Math.max(1, Math.min(2, repeticiones));
-  const probadas = new Set<string>();
-  let voz = vozElegida;
-  let dichas = 0;
-
-  const siguienteVoz = () => listarVoces().find(v => !probadas.has(v.name) && (v.localService || !esEspana(v)))
-                          || listarVoces().find(v => !probadas.has(v.name)) || null;
-
-  const intentar = () => {
-    if (yo !== llamadoActual) return;
-    if (voz) probadas.add(voz.name);
-    let empezo = false, cerrado = false;
-    const cambiarDeVoz = () => {
-      if (cerrado || yo !== llamadoActual) return;
-      cerrado = true; synth.cancel();
-      voz = siguienteVoz();
-      if (voz && probadas.size < 4) intentar();
-    };
-    const vigilante = setTimeout(() => { if (!empezo) cambiarDeVoz(); }, 6000);
-    decir(texto, voz,
-      () => { empezo = true; clearTimeout(vigilante); },
-      () => {
-        clearTimeout(vigilante);
-        if (cerrado || yo !== llamadoActual || !empezo) return;
-        cerrado = true;
-        dichas += 1;
-        if (dichas < total) setTimeout(intentar, 900);            // pausa breve y segunda (última) vez
-      },
-      (bloqueado) => { clearTimeout(vigilante); if (bloqueado) { cerrado = true; alBloqueo?.(); } else cambiarDeVoz(); });
-  };
-  intentar();
-  return true;
+  return encolarLlamado(turno, caja, repeticiones);
 }

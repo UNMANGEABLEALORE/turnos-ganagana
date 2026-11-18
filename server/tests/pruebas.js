@@ -15,11 +15,11 @@ catch { ioc = require(path.join(__dirname, '..', '..', 'client', 'node_modules',
 const { formatTurno } = require('../utils/turno');
 const ts = require(path.join(__dirname, '..', '..', 'client', 'node_modules', 'typescript'));
 /** Compila un .ts del cliente y lo ejecuta aislado (así se prueba el código REAL del frontend). */
-function cargarTS(rel) {
+function cargarTS(rel, extra = {}) {
   const src = fs.readFileSync(path.join(__dirname, '..', '..', 'client', 'src', rel), 'utf8');
   const out = ts.transpileModule(src, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
   const m = { exports: {} };
-  vm.runInNewContext(out, { exports: m.exports, module: m, localStorage: { getItem: () => null, setItem() {}, removeItem() {} } });
+  vm.runInNewContext(out, { exports: m.exports, module: m, console, localStorage: { getItem: () => null, setItem() {}, removeItem() {} }, ...extra });
   return m.exports;
 }
 const PORT  = 3999;
@@ -95,6 +95,47 @@ async function main() {
     if (!tx || /undefined|NaN/.test(tx)) vozOk = false;
   }
   check('toda combinación turno × caja produce frase válida (sin undefined/NaN)', vozOk);
+  // ── Fila de voz: dos turnos seguidos NO se pisan ──────────────────────────
+  seccion('Fila de voz (dos asesoras llaman casi a la vez)');
+  function navegadorFalso() {
+    const dichas = [];
+    class Utt { constructor(t) { this.text = t; this.volume = 1; } }
+    const synth = {
+      speaking: false, paused: false, onvoiceschanged: null,
+      getVoices: () => [{ name: 'Microsoft Salome Online (Natural) - Spanish (Colombia)', lang: 'es-CO', localService: false }],
+      cancel() {}, resume() {},
+      speak(u) { dichas.push(u.text); setTimeout(() => { u.onstart && u.onstart(); setTimeout(() => u.onend && u.onend(), 15); }, 5); }
+    };
+    const win = { speechSynthesis: synth };
+    return { dichas, voz: cargarTS('controllers/voz.ts', { window: win, speechSynthesis: synth, SpeechSynthesisUtterance: Utt, setTimeout, clearTimeout, Promise }) };
+  }
+  const T = (n, c) => voz.textoVoz(n, c);
+  {
+    const nav = navegadorFalso(); let campanillas = 0;
+    nav.voz.alIniciarSerie(() => { campanillas += 1; });
+    nav.voz.encolarLlamado(10, 1); nav.voz.encolarLlamado(11, 2);          // casi a la vez
+    await dormir(4500);
+    check('A10 y A11 seguidos: se dicen los DOS, en orden, y luego se repiten (A10, A11, A10, A11)',
+      JSON.stringify(nav.dichas) === JSON.stringify([T(10, 1), T(11, 2), T(10, 1), T(11, 2)]), JSON.stringify(nav.dichas));
+    check('la campanilla suena UNA sola vez para toda la serie', campanillas === 1, 'campanillas=' + campanillas);
+    check('al terminar no queda nada pendiente', nav.voz.hayAnunciosPendientes() === false);
+  }
+  {
+    const nav = navegadorFalso();
+    nav.voz.encolarLlamado(22, 2);
+    await dormir(2500);
+    check('un solo turno se dice exactamente 2 veces (ni 3 ni 4)', nav.dichas.length === 2 && nav.dichas[0] === T(22, 2), JSON.stringify(nav.dichas));
+  }
+  {
+    const nav = navegadorFalso();
+    nav.voz.encolarLlamado(30, 1); await dormir(25); nav.voz.encolarLlamado(31, 2); nav.voz.encolarLlamado(32, 3);
+    await dormir(7000);
+    check('tres turnos rápidos: ninguno se pierde y ninguno se dice más de 2 veces',
+      [30, 31, 32].every((n, i) => nav.dichas.filter(x => x === T(n, i + 1)).length === 2) && nav.dichas.length === 6, JSON.stringify(nav.dichas));
+    check('el primero en llegar es el primero en decirse', nav.dichas[0] === T(30, 1));
+  }
+  check('cajas 10 y 12 se leen en palabras ("diez", "doce")', /caja número diez\./.test(T(5, 10)) && /caja número doce\./.test(T(5, 12)));
+
   const vc = cargarTS('models/validaciones.ts');
 
   seccion('Validaciones lógicas del frontend (TypeScript)');

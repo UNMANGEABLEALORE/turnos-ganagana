@@ -66,6 +66,12 @@ async function main() {
     check('queda registrada la fecha de hoy (hora de Colombia)', JSON.parse(fs.readFileSync(STORE, 'utf8')).config.ultimo_reinicio === hoyColombia());
     await parar(srv);
 
+    escribirStore({ ultimo_reinicio: '2000-01-01', hora_reinicio: '00:00' });   // sin configurar nada
+    srv = arrancar(); await esperar();
+    check('POR DEFECTO el contador NO se reinicia al día siguiente (la numeración sigue: los turnos son de papel)', (await estado()).contador === 50);
+    check('el panel lo muestra apagado por defecto', (await (await fetch(`${BASE}/api/config`)).json()).reinicioDiario === false);
+    await parar(srv);
+
     escribirStore({ ultimo_reinicio: '2000-01-01', hora_reinicio: '00:00', reinicio_diario: false });
     srv = arrancar(); await esperar();
     check('con el reinicio diario DESACTIVADO no se toca el contador', (await estado()).contador === 50);

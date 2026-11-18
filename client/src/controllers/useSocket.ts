@@ -19,7 +19,11 @@ function obtenerClientId(): string {
 
 type TipoCliente = 'caja' | 'pantalla' | 'admin';
 
-interface OpcionesSocket { tipo?: TipoCliente; caja?: number | null; }
+interface OpcionesSocket {
+  tipo?: TipoCliente; caja?: number | null;
+  /** Se llama por CADA turno que llega (aunque lleguen dos seguidos). La pantalla pública lo usa para anunciar en orden. */
+  alNuevoTurno?: (t: { turno: number; caja: number }) => void;
+}
 
 interface NuevoTurnoEvento { turno: number; caja: number; estado?: EstadoSistema; }
 
@@ -29,7 +33,9 @@ interface NuevoTurnoEvento { turno: number; caja: number; estado?: EstadoSistema
  *   caja: 1-4 (solo cuando tipo='caja')
  * bloqueoCaja: texto con el motivo si la caja está en uso por otro equipo (o se perdió).
  */
-export function useSocket({ tipo = 'caja', caja = null }: OpcionesSocket = {}) {
+export function useSocket({ tipo = 'caja', caja = null, alNuevoTurno }: OpcionesSocket = {}) {
+  const turnoRef = useRef(alNuevoTurno);
+  turnoRef.current = alNuevoTurno;
   const [connected,   setConnected]   = useState<boolean>(socket.connected);
   const [estado,      setEstado]      = useState<EstadoSistema | null>(null);
   const [config,      setConfig]      = useState<ConfigSistema | null>(null);
@@ -71,6 +77,7 @@ export function useSocket({ tipo = 'caja', caja = null }: OpcionesSocket = {}) {
     }
 
     function onNuevoTurno(data: NuevoTurnoEvento) {
+      if (typeof data.turno === 'number' && typeof data.caja === 'number') turnoRef.current?.({ turno: data.turno, caja: data.caja });
       if (data.estado) {
         setEstado(data.estado);
         if (data.estado.cajasEstado) setCajasEstado(data.estado.cajasEstado);
